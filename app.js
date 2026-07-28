@@ -532,6 +532,70 @@ function updateDayScopeToggle() {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-pressed', active ? 'true' : 'false');
   });
+  syncFilterDatePanel();
+}
+
+function syncFilterDatePanel() {
+  const panel = $('#filter-panel-date');
+  if (!panel) return;
+  const summary = panel.querySelector('summary');
+  if (hasDayRangeFilter()) {
+    const today = todayISO();
+    const isTodayOnly = listFilters.dayFrom === today && listFilters.dayTo === today;
+    if (!isTodayOnly) panel.open = true;
+    if (summary) summary.textContent = `📅 ${formatDayRangeLabel()}`;
+  } else if (summary) {
+    summary.textContent = '📅 自訂日期範圍';
+  }
+}
+
+function updateFilterActiveSummary() {
+  const parts = [];
+  const cat = $('#filter-category');
+  if (listFilters.category && cat?.selectedOptions?.[0]) {
+    parts.push(cat.selectedOptions[0].textContent.trim());
+  }
+  const split = $('#filter-split');
+  if (listFilters.splitMode && split?.selectedOptions?.[0]) {
+    parts.push(split.selectedOptions[0].textContent.trim());
+  }
+  if (listFilters.sortAmount === 'asc') parts.push('價錢↑');
+  if (listFilters.sortAmount === 'desc') parts.push('價錢↓');
+  if (listFilters.sortDate === 'asc') parts.push('最舊優先');
+
+  const hint = $('#filter-active-hint');
+  const panel = $('#filter-panel-advanced');
+  if (!hint) return;
+  if (parts.length) {
+    hint.textContent = parts.join(' · ');
+    hint.classList.remove('hidden');
+    panel?.classList.add('has-active');
+  } else {
+    hint.textContent = '';
+    hint.classList.add('hidden');
+    panel?.classList.remove('has-active');
+  }
+}
+
+function setupListFilterToggle(groupId, hiddenId, attr, filterKey, onChange) {
+  const group = $(groupId);
+  const hidden = $(hiddenId);
+  if (!group || !hidden) return;
+
+  group.querySelectorAll('.toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      group.querySelectorAll('.toggle-btn').forEach((b) => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      const raw = btn.dataset[attr];
+      hidden.value = raw === 'all' ? '' : raw;
+      listFilters[filterKey] = hidden.value;
+      onChange();
+    });
+  });
 }
 
 function setDayRange(from, to) {
@@ -2436,6 +2500,7 @@ async function confirmClearAllData() {
 function setupListFilters() {
   const resetPage = () => {
     listFilters.currentPage = 1;
+    updateFilterActiveSummary();
     renderTransactionList();
   };
 
@@ -2443,6 +2508,9 @@ function setupListFilters() {
   const toggleListDetail = () => applyListViewExpanded(!listViewExpanded);
   $('#btn-list-detail-toggle-top')?.addEventListener('click', toggleListDetail);
   $('#btn-list-detail-toggle-bottom')?.addEventListener('click', toggleListDetail);
+
+  setupListFilterToggle('#filter-currency-toggle', '#filter-currency', 'currency', 'currency', resetPage);
+  setupListFilterToggle('#filter-payer-toggle', '#filter-payer', 'payer', 'payer', resetPage);
 
   $('#filter-sort-amount').addEventListener('change', (e) => {
     listFilters.sortAmount = e.target.value;
@@ -2474,16 +2542,6 @@ function setupListFilters() {
 
   $('#filter-category').addEventListener('change', (e) => {
     listFilters.category = e.target.value;
-    resetPage();
-  });
-
-  $('#filter-currency').addEventListener('change', (e) => {
-    listFilters.currency = e.target.value;
-    resetPage();
-  });
-
-  $('#filter-payer').addEventListener('change', (e) => {
-    listFilters.payer = e.target.value;
     resetPage();
   });
 
@@ -2522,6 +2580,8 @@ function setupListFilters() {
   $('#btn-prev-bottom').addEventListener('click', goPrevPage);
   $('#btn-next').addEventListener('click', goNextPage);
   $('#btn-next-bottom').addEventListener('click', goNextPage);
+
+  updateFilterActiveSummary();
 }
 
 function switchTab(tabName) {

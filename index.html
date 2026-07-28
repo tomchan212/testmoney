@@ -8,7 +8,7 @@
   <title>✈️ 日本旅遊記帳 🇯🇵</title>
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="styles.css?v=20260728bb">
+  <link rel="stylesheet" href="styles.css?v=20260728bc">
 </head>
 <body>
   <header class="app-header">
@@ -237,80 +237,99 @@
       </div>
 
       <div class="list-controls">
-        <div class="filter-grid">
-          <div class="filter-item filter-item-full">
-            <label>📅 選擇日子</label>
-            <div class="filter-day-row">
-              <div class="toggle-group day-scope-toggle" id="filter-day-toggle" role="group" aria-label="日子範圍">
+        <div class="filter-groups">
+          <div class="filter-quick-bar">
+            <div class="filter-quick-row">
+              <span class="filter-quick-label" aria-hidden="true">📅</span>
+              <div class="toggle-group filter-toggle-compact day-scope-toggle" id="filter-day-toggle" role="group" aria-label="日子範圍">
                 <button type="button" class="toggle-btn active" data-day-scope="all" aria-pressed="true">全部</button>
                 <button type="button" class="toggle-btn" data-day-scope="today" aria-pressed="false">今日</button>
               </div>
+            </div>
+            <div class="filter-quick-row">
+              <span class="filter-quick-label" aria-hidden="true">💱</span>
+              <div class="toggle-group filter-toggle-compact" id="filter-currency-toggle" role="group" aria-label="幣別篩選">
+                <button type="button" class="toggle-btn active" data-currency="all" aria-pressed="true">全部</button>
+                <button type="button" class="toggle-btn" data-currency="JPY" aria-pressed="false">JPY</button>
+                <button type="button" class="toggle-btn" data-currency="HKD" aria-pressed="false">HKD</button>
+              </div>
+              <input type="hidden" id="filter-currency" value="">
+            </div>
+            <div class="filter-quick-row">
+              <span class="filter-quick-label" aria-hidden="true">💳</span>
+              <div class="toggle-group filter-toggle-compact" id="filter-payer-toggle" role="group" aria-label="邊個畀錢">
+                <button type="button" class="toggle-btn active" data-payer="all" aria-pressed="true">全部</button>
+                <button type="button" class="toggle-btn" data-payer="A" aria-pressed="false" aria-label="男孩">👦🏻</button>
+                <button type="button" class="toggle-btn" data-payer="B" aria-pressed="false" aria-label="女孩">👩🏻</button>
+              </div>
+              <input type="hidden" id="filter-payer" value="">
+            </div>
+          </div>
+
+          <details class="filter-panel" id="filter-panel-date">
+            <summary>📅 自訂日期範圍</summary>
+            <div class="filter-panel-body filter-day-range-panel">
               <div class="filter-day-range">
                 <input type="date" id="filter-day-from" aria-label="開始日期">
                 <span class="day-range-sep" aria-hidden="true">至</span>
                 <input type="date" id="filter-day-to" aria-label="結束日期">
               </div>
             </div>
-          </div>
-          <div class="filter-item">
-            <label for="filter-currency">💱 幣別</label>
-            <select id="filter-currency">
-              <option value="">全部</option>
-              <option value="JPY">💴 JPY</option>
-              <option value="HKD">💵 HKD</option>
-            </select>
-          </div>
-          <div class="filter-item">
-            <label for="filter-payer">💳 邊個畀錢</label>
-            <select id="filter-payer">
-              <option value="">全部</option>
-              <option value="A">👦🏻 男孩</option>
-              <option value="B">👩🏻 女孩</option>
-            </select>
-          </div>
-          <div class="filter-item">
-            <label for="filter-sort-amount">💰 價錢</label>
-            <select id="filter-sort-amount">
-              <option value="">預設</option>
-              <option value="asc">低至高 ↑</option>
-              <option value="desc">高至低 ↓</option>
-            </select>
-          </div>
-          <div class="filter-item">
-            <label for="filter-sort-date">🕐 排序</label>
-            <select id="filter-sort-date">
-              <option value="desc">最新優先</option>
-              <option value="asc">最舊優先</option>
-            </select>
-          </div>
-          <div class="filter-item">
-            <label for="filter-category">🏷️ 分類</label>
-            <select id="filter-category">
-              <option value="">全部分類</option>
-              <option value="餐飲">🍱 餐飲（全部）</option>
-              <option value="餐飲-早餐">🌅 早餐</option>
-              <option value="餐飲-午餐">☀️ 午餐</option>
-              <option value="餐飲-晚餐">🌙 晚餐</option>
-              <option value="交通">🚗 交通</option>
-              <option value="住宿">🏨 住宿</option>
-              <option value="購物">🛍️ 購物</option>
-              <option value="景點">🎟️ 景點</option>
-              <option value="便利店">🏪 便利店</option>
-              <option value="雜項">📦 雜項</option>
-              <option value="還錢">🤝🏻 還錢</option>
-              <option value="__custom__">✏️ 自定</option>
-            </select>
-          </div>
-          <div class="filter-item">
-            <label for="filter-split">💸 樣嘢點計</label>
-            <select id="filter-split">
-              <option value="">全部</option>
-              <option value="SPLIT_5050">👥 一人一半</option>
-              <option value="FOR_A">👦🏻 自己嘅</option>
-              <option value="FOR_B">👩🏻 自己嘅</option>
-              <option value="REPAY">🤝🏻 還錢</option>
-            </select>
-          </div>
+          </details>
+
+          <details class="filter-panel" id="filter-panel-advanced">
+            <summary>
+              <span class="filter-panel-title">🔍 分類 · 排序 · 分帳</span>
+              <span class="filter-active-hint hidden" id="filter-active-hint"></span>
+            </summary>
+            <div class="filter-panel-body">
+              <div class="filter-grid filter-grid-advanced">
+                <div class="filter-item">
+                  <label for="filter-category">🏷️ 分類</label>
+                  <select id="filter-category">
+                    <option value="">全部分類</option>
+                    <option value="餐飲">🍱 餐飲（全部）</option>
+                    <option value="餐飲-早餐">🌅 早餐</option>
+                    <option value="餐飲-午餐">☀️ 午餐</option>
+                    <option value="餐飲-晚餐">🌙 晚餐</option>
+                    <option value="交通">🚗 交通</option>
+                    <option value="住宿">🏨 住宿</option>
+                    <option value="購物">🛍️ 購物</option>
+                    <option value="景點">🎟️ 景點</option>
+                    <option value="便利店">🏪 便利店</option>
+                    <option value="雜項">📦 雜項</option>
+                    <option value="還錢">🤝🏻 還錢</option>
+                    <option value="__custom__">✏️ 自定</option>
+                  </select>
+                </div>
+                <div class="filter-item">
+                  <label for="filter-split">💸 樣嘢點計</label>
+                  <select id="filter-split">
+                    <option value="">全部</option>
+                    <option value="SPLIT_5050">👥 一人一半</option>
+                    <option value="FOR_A">👦🏻 自己嘅</option>
+                    <option value="FOR_B">👩🏻 自己嘅</option>
+                    <option value="REPAY">🤝🏻 還錢</option>
+                  </select>
+                </div>
+                <div class="filter-item">
+                  <label for="filter-sort-amount">💰 價錢</label>
+                  <select id="filter-sort-amount">
+                    <option value="">預設</option>
+                    <option value="asc">低至高 ↑</option>
+                    <option value="desc">高至低 ↓</option>
+                  </select>
+                </div>
+                <div class="filter-item">
+                  <label for="filter-sort-date">🕐 排序</label>
+                  <select id="filter-sort-date">
+                    <option value="desc">最新優先</option>
+                    <option value="asc">最舊優先</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </details>
         </div>
 
         <div class="pagination-bar">
@@ -661,6 +680,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260728bi"></script>
+  <script src="app.js?v=20260728bj"></script>
 </body>
 </html>
