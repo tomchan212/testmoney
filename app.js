@@ -99,8 +99,7 @@ let syncTimer = null;
 let isMutating = false;
 let lastSyncedAt = null;
 let currencyView = 'jpy';
-let loadingProgressTimer = null;
-let loadingProgressValue = 0;
+let isSyncing = false;
 
 const listFilters = {
   dayFrom: '',
@@ -130,7 +129,6 @@ const $$ = (sel) => document.querySelectorAll(sel);
 
 const els = {
   toast: $('#toast'),
-  loading: $('#loading-overlay'),
   transactionList: $('#transaction-list'),
   expenseForm: $('#expense-form'),
   expenseDate: $('#expense-date'),
@@ -152,44 +150,11 @@ function showToast(message, type = 'info') {
   toastTimer = setTimeout(() => els.toast.classList.add('hidden'), 2800);
 }
 
-function setLoadingProgress(percent) {
-  loadingProgressValue = Math.max(0, Math.min(100, Math.round(percent)));
-  const label = $('#loading-percent');
-  if (label) label.textContent = `${loadingProgressValue}%`;
-  const bar = $('#loading-progress-bar');
-  if (bar) bar.style.width = `${loadingProgressValue}%`;
-}
-
-function stopLoadingProgress() {
-  if (loadingProgressTimer) {
-    clearInterval(loadingProgressTimer);
-    loadingProgressTimer = null;
-  }
-}
-
-function startLoadingProgress() {
-  stopLoadingProgress();
-  setLoadingProgress(0);
-  loadingProgressTimer = setInterval(() => {
-    if (loadingProgressValue >= 92) return;
-    const step = loadingProgressValue < 40 ? 7 : loadingProgressValue < 70 ? 4 : 2;
-    setLoadingProgress(loadingProgressValue + step);
-  }, 180);
-}
-
-function setLoading(show) {
-  if (show) {
-    startLoadingProgress();
-    els.loading.classList.remove('hidden');
-    return;
-  }
-
-  stopLoadingProgress();
-  setLoadingProgress(100);
-  window.setTimeout(() => {
-    els.loading.classList.add('hidden');
-    setLoadingProgress(0);
-  }, 180);
+function setSyncControlsDisabled(disabled) {
+  const statusBtn = $('#sync-status');
+  const syncBtn = $('#sync-btn');
+  if (statusBtn) statusBtn.disabled = disabled;
+  if (syncBtn) syncBtn.disabled = disabled;
 }
 
 function formatNumber(n, currency = 'JPY') {
@@ -626,14 +591,14 @@ function updateSyncStatus(state, syncedAt) {
   if (state === 'syncing') {
     el.textContent = `☁️ 同步中…${sheetHint}`;
     el.className = 'sync-status syncing';
-    el.disabled = true;
+    setSyncControlsDisabled(true);
     return;
   }
 
   if (state === 'error') {
     el.textContent = `⚠️ 無法連線試算表${sheetHint}`;
     el.className = 'sync-status error';
-    el.disabled = false;
+    setSyncControlsDisabled(false);
     return;
   }
 
@@ -645,10 +610,19 @@ function updateSyncStatus(state, syncedAt) {
   });
   el.textContent = `☁️ 已同步 ${time}${sheetHint}`;
   el.className = 'sync-status synced';
-  el.disabled = false;
+  setSyncControlsDisabled(false);
   el.title = endpoint.spreadsheetUrl
     ? `${endpoint.label}\n${endpoint.spreadsheetUrl}`
     : endpoint.label;
+}
+
+async function manualSync(options = {}) {
+  if (isSyncing || isMutating) return;
+  try {
+    await fetchAllData({ showSuccessToast: options.showSuccessToast !== false });
+  } catch (_) {
+    showToast('同步失敗，請稍後再試', 'error');
+  }
 }
 
 function getOtherEndpointKey() {
@@ -892,7 +866,8 @@ function applyServerData(data) {
 
 async function fetchAllData(options = {}) {
   const { silent = false, showSuccessToast = false } = options;
-  if (!silent) setLoading(true);
+  if (isSyncing) return;
+  isSyncing = true;
   updateSyncStatus('syncing');
 
   try {
@@ -905,7 +880,7 @@ async function fetchAllData(options = {}) {
     updateSyncStatus('error');
     throw err;
   } finally {
-    if (!silent) setLoading(false);
+    isSyncing = false;
   }
 }
 
@@ -966,7 +941,7 @@ async function syncClearAllTransactions() {
 function startAutoSync() {
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = setInterval(async () => {
-    if (isMutating || isModalOpen()) return;
+    if (isMutating || isSyncing || isModalOpen()) return;
     try {
       await fetchAllData({ silent: true });
     } catch (_) {}
@@ -2171,7 +2146,7 @@ async function confirmDeleteTransaction() {
 
   closeModal(els.deleteConfirmModal);
   isMutating = true;
-  setLoading(true);
+  updateSyncStatus('syncing');
   try {
     const data = await syncDeleteTransaction(transactionId);
     applyServerData(data);
@@ -2182,10 +2157,10 @@ async function confirmDeleteTransaction() {
     }
     showToast('紀錄已刪除 🗑️', 'success');
   } catch (_) {
+    updateSyncStatus('error');
     showToast('刪除失敗，請稍後再試', 'error');
   } finally {
     isMutating = false;
-    setLoading(false);
   }
 }
 
@@ -2193,7 +2168,7 @@ async function confirmClearAllData() {
   closeModal(els.deleteConfirmModal);
   closeModal($('#sheet-switcher-modal'));
   isMutating = true;
-  setLoading(true);
+  updateSyncStatus('syncing');
   try {
     const data = await syncClearAllTransactions();
     applyServerData(data);
@@ -2204,11 +2179,11 @@ async function confirmClearAllData() {
     closeModal(els.editModal);
     showToast(`已清空「${getActiveEndpoint().label}」全部紀錄 🗑️`, 'success');
   } catch (_) {
+    updateSyncStatus('error');
     showToast('清空失敗，請確認 Apps Script 已部署 clearTransactions', 'error');
   } finally {
     deleteConfirmMode = 'delete-one';
     isMutating = false;
-    setLoading(false);
   }
 }
 
@@ -2334,13 +2309,8 @@ function setupEventListeners() {
   setupCategorySelect('#edit-category', '#edit-custom-category-row', '#edit-custom-category');
 
   $('#btn-edit-budget').addEventListener('click', openBudgetModal);
-  $('#btn-refresh').addEventListener('click', async () => {
-    try {
-      await fetchAllData({ showSuccessToast: true });
-    } catch (_) {
-      showToast('刷新失敗，請稍後再試', 'error');
-    }
-  });
+  $('#btn-refresh').addEventListener('click', () => manualSync());
+  $('#sync-btn')?.addEventListener('click', () => manualSync());
 
   $$('[data-close-modal]').forEach((el) => {
     el.addEventListener('click', () => {
@@ -2429,7 +2399,7 @@ function setupEventListeners() {
 
     isMutating = true;
     closeModal(els.repayModal);
-    setLoading(true);
+    updateSyncStatus('syncing');
     try {
       tx.location = await captureCurrentLocation();
       const data = await syncAddTransaction(tx);
@@ -2439,10 +2409,10 @@ function setupEventListeners() {
       switchTab('list');
       showToast('還錢紀錄已同步 ✅', 'success');
     } catch (_) {
+      updateSyncStatus('error');
       showToast('還錢同步失敗，請確認 Apps Script 已部署', 'error');
     } finally {
       isMutating = false;
-      setLoading(false);
     }
   });
 
@@ -2480,7 +2450,7 @@ function setupEventListeners() {
     }
 
     isMutating = true;
-    setLoading(true);
+    updateSyncStatus('syncing');
     try {
       tx.location = await captureCurrentLocation();
       const data = await syncAddTransaction(tx);
@@ -2498,10 +2468,10 @@ function setupEventListeners() {
       switchTab('list');
       showToast('已新增並同步至試算表 ✨', 'success');
     } catch (_) {
+      updateSyncStatus('error');
       showToast('同步失敗，請確認 Apps Script 已部署', 'error');
     } finally {
       isMutating = false;
-      setLoading(false);
     }
   });
 
@@ -2519,7 +2489,7 @@ function setupEventListeners() {
     };
 
     isMutating = true;
-    setLoading(true);
+    updateSyncStatus('syncing');
     try {
       const data = await syncBudgets(newBudgets);
       applyServerData(data);
@@ -2527,10 +2497,10 @@ function setupEventListeners() {
       closeModal(els.budgetModal);
       showToast('預算已同步至試算表 💾', 'success');
     } catch (_) {
+      updateSyncStatus('error');
       showToast('預算同步失敗，請確認 Apps Script 已部署', 'error');
     } finally {
       isMutating = false;
-      setLoading(false);
     }
   });
 
@@ -2573,7 +2543,7 @@ function setupEventListeners() {
     };
 
     isMutating = true;
-    setLoading(true);
+    updateSyncStatus('syncing');
     try {
       const data = await syncEditTransaction(updated);
       applyServerData(data);
@@ -2581,10 +2551,10 @@ function setupEventListeners() {
       closeModal(els.editModal);
       showToast('已更新並同步至試算表 💾', 'success');
     } catch (_) {
+      updateSyncStatus('error');
       showToast('更新同步失敗，請確認 Apps Script 已部署', 'error');
     } finally {
       isMutating = false;
-      setLoading(false);
     }
   });
 }
@@ -2669,7 +2639,7 @@ function setupParticleEffects() {
     'pointerdown',
     (e) => {
       const target = e.target.closest(
-        '.btn, .toggle-btn, .tab-btn, .currency-label, .btn-page, .btn-edit, .sync-status, .split-option'
+        '.btn, .toggle-btn, .tab-btn, .currency-label, .btn-page, .btn-edit, .sync-status, .sync-btn, .split-option'
       );
       if (!target || target.disabled) return;
       spawnParticles(e.clientX, e.clientY, target.classList.contains('btn-primary') ? 18 : 12);

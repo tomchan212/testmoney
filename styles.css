@@ -141,11 +141,19 @@ html.theme-cyberpunk .app-container {
   margin-top: 0.35rem;
 }
 
+.sync-bar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+}
+
 .sync-status {
   display: inline-block;
   font: inherit;
   font-size: 0.75rem;
-  margin-top: 0.5rem;
+  margin-top: 0;
   padding: 0.25rem 0.65rem;
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 999px;
@@ -178,6 +186,33 @@ html.theme-cyberpunk .app-container {
 
 .sync-status.syncing {
   opacity: 0.8;
+}
+
+.sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+}
+
+.sync-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+  transform: rotate(-20deg);
+}
+
+.sync-btn:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 /* ===== Container ===== */
@@ -2321,6 +2356,18 @@ html.theme-cyberpunk .sync-status {
   background: rgba(0, 246, 255, 0.08);
   color: #9af7ff;
   text-shadow: 0 0 8px rgba(0, 246, 255, 0.45);
+}
+
+html.theme-cyberpunk .sync-btn {
+  border-color: rgba(0, 246, 255, 0.45);
+  background: rgba(0, 246, 255, 0.08);
+  color: #9af7ff;
+  box-shadow: 0 0 10px rgba(0, 246, 255, 0.18);
+}
+
+html.theme-cyberpunk .sync-btn:hover:not(:disabled) {
+  background: rgba(0, 246, 255, 0.16);
+  box-shadow: 0 0 14px rgba(0, 246, 255, 0.35);
 }
 
 html.theme-cyberpunk .card,

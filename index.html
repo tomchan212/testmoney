@@ -4,22 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>✈️ 日本旅遊記帳 🇯🇵</title>
-  <link rel="stylesheet" href="styles.css?v=20260728av">
+  <link rel="stylesheet" href="styles.css?v=20260728ba">
 </head>
 <body>
   <header class="app-header">
     <h1>✈️ 日本旅遊記帳 🇯🇵</h1>
-    <button type="button" class="sync-status syncing" id="sync-status" aria-label="切換試算表來源">☁️ 連線試算表中…</button>
+    <div class="sync-bar">
+      <button type="button" class="sync-status syncing" id="sync-status" aria-label="切換試算表來源">☁️ 連線試算表中…</button>
+      <button type="button" class="sync-btn" id="sync-btn" aria-label="手動同步" title="同步試算表">🔄</button>
+    </div>
   </header>
 
   <!-- Overlays must stay outside .app-container so cyberpunk stacking works -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
-  <div id="loading-overlay" class="loading-overlay hidden">
-    <p>同步中… <span id="loading-percent">0%</span></p>
-    <div class="loading-progress" aria-hidden="true">
-      <div class="loading-progress-bar" id="loading-progress-bar"></div>
-    </div>
-  </div>
 
   <main class="app-container">
     <!-- Tab: 記一筆賬 (Home) -->
@@ -610,6 +607,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260728az"></script>
+  <script src="app.js?v=20260728ba"></script>
 </body>
 </html>
