@@ -193,15 +193,17 @@ function isSyncBusy() {
   return isMutating || loadingCount > 0;
 }
 
-function updateMutationControls() {
-  const busy = isSyncBusy();
-  const mutateBlocked = isMutating;
-  const statusEl = $('#sync-status');
-  const isSyncing = statusEl?.classList.contains('syncing');
+function isRefreshBlocked() {
+  return isMutating;
+}
 
-  if (els.syncRefreshBtn) els.syncRefreshBtn.disabled = isSyncing || busy;
+function updateMutationControls() {
+  const mutateBlocked = isMutating;
+  const refreshBlocked = isRefreshBlocked();
+
+  if (els.syncRefreshBtn) els.syncRefreshBtn.disabled = refreshBlocked;
   const listRefreshBtn = $('#btn-refresh');
-  if (listRefreshBtn) listRefreshBtn.disabled = busy;
+  if (listRefreshBtn) listRefreshBtn.disabled = refreshBlocked;
 
   els.expenseForm?.querySelector('[type="submit"]')?.toggleAttribute('disabled', mutateBlocked);
   els.budgetForm?.querySelector('[type="submit"]')?.toggleAttribute('disabled', mutateBlocked);
@@ -765,9 +767,8 @@ function updateSyncStatus(state, syncedAt) {
 
   const endpoint = getActiveEndpoint();
   const sheetHint = apiEndpointKey === 'tester' ? ' · 測試' : '';
-  const isSyncing = state === 'syncing';
 
-  if (refreshBtn) refreshBtn.disabled = isSyncing || isSyncBusy();
+  if (refreshBtn) refreshBtn.disabled = isRefreshBlocked();
 
   if (state === 'syncing') {
     el.textContent = `☁️ 同步中…${sheetHint}`;
@@ -780,7 +781,7 @@ function updateSyncStatus(state, syncedAt) {
     el.textContent = `⚠️ 無法連線試算表${sheetHint}`;
     el.className = 'sync-status error';
     el.disabled = false;
-    if (refreshBtn) refreshBtn.disabled = isSyncBusy();
+    if (refreshBtn) refreshBtn.disabled = isRefreshBlocked();
     return;
   }
 
@@ -793,14 +794,14 @@ function updateSyncStatus(state, syncedAt) {
   el.textContent = `☁️ 已同步 ${time}${sheetHint}`;
   el.className = 'sync-status synced';
   el.disabled = false;
-  if (refreshBtn) refreshBtn.disabled = isSyncBusy();
+  if (refreshBtn) refreshBtn.disabled = isRefreshBlocked();
   el.title = endpoint.spreadsheetUrl
     ? `${endpoint.label}\n${endpoint.spreadsheetUrl}`
     : endpoint.label;
 }
 
 async function manualSync() {
-  if (isSyncBusy()) return;
+  if (isRefreshBlocked()) return;
   try {
     await fetchAllData({ showSuccessToast: true });
   } catch (err) {
@@ -2647,7 +2648,7 @@ function setupEventListeners() {
 
   $('#btn-edit-budget').addEventListener('click', openBudgetModal);
   $('#btn-refresh').addEventListener('click', async () => {
-    if (isSyncBusy()) return;
+    if (isRefreshBlocked()) return;
     try {
       await fetchAllData({ showSuccessToast: true });
     } catch (err) {
@@ -2677,7 +2678,7 @@ function setupEventListeners() {
   });
 
   els.syncRefreshBtn?.addEventListener('click', () => {
-    if (els.syncRefreshBtn.disabled) return;
+    if (isRefreshBlocked()) return;
     manualSync();
   });
 
