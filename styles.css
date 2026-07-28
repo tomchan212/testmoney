@@ -106,8 +106,7 @@ html.theme-cyberpunk body::before {
 }
 
 html.theme-cyberpunk .app-header,
-html.theme-cyberpunk .app-container,
-html.theme-cyberpunk .tab-nav {
+html.theme-cyberpunk .app-container {
   position: relative;
   z-index: 1;
 }
@@ -2334,6 +2333,11 @@ html.theme-cyberpunk .page-numbers .btn-page {
 }
 
 html.theme-cyberpunk .tab-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
   background: rgba(11, 11, 24, 0.94) !important;
   border-top: 1px solid rgba(0, 246, 255, 0.2);
   backdrop-filter: blur(10px);
