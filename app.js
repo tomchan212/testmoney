@@ -12,7 +12,7 @@ const API_ENDPOINTS = {
   tester: {
     label: '測試試算表',
     // 部署 apps-script/Code.tester.gs 後，把「測試專案」的部署 URL 貼這裡（必須與正式不同）
-    url: 'https://script.google.com/macros/s/AKfycbxuBkrGQpP56BEmrMCRPBkrTdGYpPkP4GBDtgLAPR24CSoLRKtGWo8vy_TFbvmu6jGPNA/exec',
+    url: 'https://script.google.com/macros/s/AKfycbzdwrOqcXtXspNV5BKm2HWk6VxFXM1Rm4bVlB0QKEhvWLohsSXLWb1ctDvovYy9W_LYsw/exec',
     spreadsheetId: '1feUcrJ6_2HoJaWio22-rpycrFaLgaFThIcI0LBXaAzU',
     sheetGid: '48656539',
     spreadsheetUrl:
