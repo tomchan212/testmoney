@@ -100,6 +100,10 @@ let toastTimer = null;
 let syncTimer = null;
 let isMutating = false;
 let loadingCount = 0;
+let loadingHideTimer = null;
+let serverApplySeq = 0;
+let lastAppliedServerSeq = 0;
+let openModalCount = 0;
 let lastSyncedAt = null;
 let currencyView = 'jpy';
 let loadingProgressTimer = null;
@@ -181,23 +185,74 @@ function startLoadingProgress() {
   }, 180);
 }
 
+function isSyncBusy() {
+  return isMutating || loadingCount > 0;
+}
+
+function updateMutationControls() {
+  const busy = isSyncBusy();
+  const mutateBlocked = isMutating;
+  const statusEl = $('#sync-status');
+  const isSyncing = statusEl?.classList.contains('syncing');
+
+  if (els.syncRefreshBtn) els.syncRefreshBtn.disabled = isSyncing || busy;
+  const listRefreshBtn = $('#btn-refresh');
+  if (listRefreshBtn) listRefreshBtn.disabled = busy;
+
+  els.expenseForm?.querySelector('[type="submit"]')?.toggleAttribute('disabled', mutateBlocked);
+  els.budgetForm?.querySelector('[type="submit"]')?.toggleAttribute('disabled', mutateBlocked);
+  els.editForm?.querySelector('[type="submit"]')?.toggleAttribute('disabled', mutateBlocked);
+  $('#repay-submit-btn')?.toggleAttribute('disabled', mutateBlocked);
+  $('#delete-confirm-btn')?.toggleAttribute('disabled', mutateBlocked);
+}
+
+function beginMutation() {
+  if (isMutating) return false;
+  isMutating = true;
+  updateMutationControls();
+  return true;
+}
+
+function endMutation() {
+  isMutating = false;
+  updateMutationControls();
+  const statusEl = $('#sync-status');
+  if (statusEl?.classList.contains('synced') && lastSyncedAt) {
+    updateSyncStatus('success', lastSyncedAt);
+  } else if (statusEl?.classList.contains('error')) {
+    updateSyncStatus('error');
+  }
+}
+
+function beginServerApply() {
+  return ++serverApplySeq;
+}
+
 function setLoading(show) {
   if (show) {
+    if (loadingHideTimer) {
+      clearTimeout(loadingHideTimer);
+      loadingHideTimer = null;
+    }
     loadingCount += 1;
     if (loadingCount === 1) {
       startLoadingProgress();
       els.syncBanner?.classList.remove('hidden');
       updateSyncStatus('syncing');
     }
+    updateMutationControls();
     return;
   }
 
   loadingCount = Math.max(0, loadingCount - 1);
+  updateMutationControls();
   if (loadingCount > 0) return;
 
   stopLoadingProgress();
   setLoadingProgress(100);
-  window.setTimeout(() => {
+  loadingHideTimer = window.setTimeout(() => {
+    loadingHideTimer = null;
+    if (loadingCount > 0) return;
     els.syncBanner?.classList.add('hidden');
     setLoadingProgress(0);
     const statusEl = $('#sync-status');
@@ -644,7 +699,7 @@ function updateSyncStatus(state, syncedAt) {
   const sheetHint = apiEndpointKey === 'tester' ? ' · 測試' : '';
   const isSyncing = state === 'syncing';
 
-  if (refreshBtn) refreshBtn.disabled = isSyncing || isMutating;
+  if (refreshBtn) refreshBtn.disabled = isSyncing || isSyncBusy();
 
   if (state === 'syncing') {
     el.textContent = `☁️ 同步中…${sheetHint}`;
@@ -657,7 +712,7 @@ function updateSyncStatus(state, syncedAt) {
     el.textContent = `⚠️ 無法連線試算表${sheetHint}`;
     el.className = 'sync-status error';
     el.disabled = false;
-    if (refreshBtn) refreshBtn.disabled = isMutating;
+    if (refreshBtn) refreshBtn.disabled = isSyncBusy();
     return;
   }
 
@@ -670,14 +725,14 @@ function updateSyncStatus(state, syncedAt) {
   el.textContent = `☁️ 已同步 ${time}${sheetHint}`;
   el.className = 'sync-status synced';
   el.disabled = false;
-  if (refreshBtn) refreshBtn.disabled = isMutating;
+  if (refreshBtn) refreshBtn.disabled = isSyncBusy();
   el.title = endpoint.spreadsheetUrl
     ? `${endpoint.label}\n${endpoint.spreadsheetUrl}`
     : endpoint.label;
 }
 
 async function manualSync() {
-  if (isMutating) return;
+  if (isSyncBusy()) return;
   try {
     await fetchAllData({ showSuccessToast: true });
   } catch (err) {
@@ -939,8 +994,12 @@ async function apiRequest(payload = {}, attempt = 0) {
   return data;
 }
 
-function applyServerData(data) {
+function applyServerData(data, applySeq) {
   if (data.status !== 'SUCCESS') throw new Error('API 回傳失敗');
+  if (applySeq != null && applySeq < lastAppliedServerSeq) return false;
+
+  if (applySeq != null) lastAppliedServerSeq = applySeq;
+
   transactions = normalizeTransactions(data.transactions || []);
   budgets = budgetsFromApi(data.budgets);
 
@@ -959,18 +1018,21 @@ function applyServerData(data) {
   summary = buildLocalSummary();
   lastSyncedAt = data.synced_at || new Date().toISOString();
   renderAll();
+  return true;
 }
 
 async function fetchAllData(options = {}) {
   const { silent = false, showSuccessToast = false } = options;
+  const applySeq = beginServerApply();
   if (!silent) setLoading(true);
   else updateSyncStatus('syncing');
 
   try {
     const data = await apiRequest({ action: 'fetch' });
-    applyServerData(data);
-    updateSyncStatus('success', data.synced_at);
-    if (showSuccessToast) showToast('已刷新資料 🔄', 'success');
+    if (applyServerData(data, applySeq)) {
+      updateSyncStatus('success', data.synced_at);
+      if (showSuccessToast) showToast('已刷新資料 🔄', 'success');
+    }
     return data;
   } catch (err) {
     updateSyncStatus('error');
@@ -1037,7 +1099,7 @@ async function syncClearAllTransactions() {
 function startAutoSync() {
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = setInterval(async () => {
-    if (isMutating || isModalOpen()) return;
+    if (isSyncBusy() || isModalOpen()) return;
     try {
       await fetchAllData({ silent: true });
     } catch (_) {}
@@ -2119,12 +2181,14 @@ function setToggleValue(groupId, hiddenId, attr, value) {
 /* ===== Modals ===== */
 function openModal(modal) {
   modal.classList.remove('hidden');
+  openModalCount += 1;
   document.body.style.overflow = 'hidden';
 }
 
 function closeModal(modal) {
   modal.classList.add('hidden');
-  document.body.style.overflow = '';
+  openModalCount = Math.max(0, openModalCount - 1);
+  if (openModalCount === 0) document.body.style.overflow = '';
 }
 
 function openBudgetModal() {
@@ -2160,7 +2224,7 @@ function updateRepayModalView() {
 
   payerEl.value = debt.payer;
   amountEl.disabled = false;
-  submitBtn.disabled = false;
+  submitBtn.disabled = isMutating;
   contextEl.textContent = `目前 ${PERSON_EMOJI[debt.payer]} 欠 ${PERSON_EMOJI[debt.payee]} ${formatMoney(debt.amount, currency)}`;
   if (!amountEl.dataset.touched) {
     amountEl.value = formatMoneyInputPreset(debt.amount, currency);
@@ -2177,6 +2241,12 @@ function openRepayModal() {
   delete amountEl.dataset.touched;
   updateRepayModalView();
   openModal(els.repayModal);
+}
+
+function resolveEditSplitMode(existing) {
+  if (existing.split_mode === 'REPAY' || isRepayTransaction(existing)) return 'REPAY';
+  const checked = document.querySelector('#edit-split-options input[name="edit_split_mode"]:checked');
+  return checked ? checked.value : (existing.split_mode || 'SPLIT_5050');
 }
 
 function openEditModal(key) {
@@ -2252,56 +2322,60 @@ async function confirmDeleteTransaction() {
     return;
   }
 
+  if (!beginMutation()) return;
+
   const transactionId = $('#edit-transaction-id').value;
-  const key = $('#edit-transaction-key').value;
   if (!transactionId) {
+    endMutation();
     showToast('此紀錄尚未有試算表 ID，請先刷新', 'error');
     closeModal(els.deleteConfirmModal);
     return;
   }
 
-  const tx = findTransactionByKey(key);
-
   closeModal(els.deleteConfirmModal);
-  isMutating = true;
   setLoading(true);
+  const applySeq = beginServerApply();
   let recordSyncOk = false;
   try {
     const data = await syncDeleteTransaction(transactionId);
-    applyServerData(data);
-    updateSyncStatus('success', data.synced_at);
-    closeModal(els.editModal);
-    dismissDetailModal();
-    showToast('紀錄已刪除 🗑️', 'success');
-    recordSyncOk = true;
+    if (applyServerData(data, applySeq)) {
+      updateSyncStatus('success', data.synced_at);
+      closeModal(els.editModal);
+      dismissDetailModal();
+      showToast('紀錄已刪除 🗑️', 'success');
+      recordSyncOk = true;
+    }
   } catch (err) {
     showToast(formatApiError(err), 'error');
   } finally {
-    isMutating = false;
+    endMutation();
     setLoading(false);
     if (recordSyncOk) onRecordSyncComplete();
   }
 }
 
 async function confirmClearAllData() {
+  if (!beginMutation()) return;
+
   closeModal(els.deleteConfirmModal);
   closeModal($('#sheet-switcher-modal'));
-  isMutating = true;
   setLoading(true);
+  const applySeq = beginServerApply();
   try {
     const data = await syncClearAllTransactions();
-    applyServerData(data);
-    updateSyncStatus('success', data.synced_at);
-    listFilters.currentPage = 1;
-    dismissDetailModal();
-    closePersonSpendModal();
-    closeModal(els.editModal);
-    showToast(`已清空「${getActiveEndpoint().label}」全部紀錄 🗑️`, 'success');
+    if (applyServerData(data, applySeq)) {
+      updateSyncStatus('success', data.synced_at);
+      listFilters.currentPage = 1;
+      dismissDetailModal();
+      closePersonSpendModal();
+      closeModal(els.editModal);
+      showToast(`已清空「${getActiveEndpoint().label}」全部紀錄 🗑️`, 'success');
+    }
   } catch (err) {
     showToast(formatApiError(err), 'error');
   } finally {
     deleteConfirmMode = 'delete-one';
-    isMutating = false;
+    endMutation();
     setLoading(false);
   }
 }
@@ -2445,6 +2519,7 @@ function setupEventListeners() {
 
   $('#btn-edit-budget').addEventListener('click', openBudgetModal);
   $('#btn-refresh').addEventListener('click', async () => {
+    if (isSyncBusy()) return;
     try {
       await fetchAllData({ showSuccessToast: true });
     } catch (err) {
@@ -2486,6 +2561,7 @@ function setupEventListeners() {
   $('#btn-clear-all-data')?.addEventListener('click', openClearAllDataConfirm);
 
   $('#delete-confirm-btn')?.addEventListener('click', () => {
+    if (isMutating) return;
     confirmDeleteTransaction();
   });
 
@@ -2511,21 +2587,24 @@ function setupEventListeners() {
 
   $('#repay-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (isMutating) return;
+    if (!beginMutation()) return;
 
     const currency = $('#repay-currency').value;
     const debt = getDebtInfo(currency);
     if (!debt) {
+      endMutation();
       showToast('呢個幣別已經還清啦', 'info');
       return;
     }
 
     const amount = Number($('#repay-amount').value);
     if (amount <= 0) {
+      endMutation();
       showToast('請填寫有效金額', 'error');
       return;
     }
     if (amount > debt.amount + 0.01) {
+      endMutation();
       showToast(`還錢金額唔可以超過欠款 ${formatMoney(debt.amount, currency)}`, 'error');
       return;
     }
@@ -2542,21 +2621,22 @@ function setupEventListeners() {
       split_mode: 'REPAY',
     };
 
-    isMutating = true;
     closeModal(els.repayModal);
     setLoading(true);
+    const applySeq = beginServerApply();
     let recordSyncOk = false;
     try {
       tx.location = await captureCurrentLocation();
       const data = await syncAddTransaction(tx);
-      applyServerData(data);
-      updateSyncStatus('success', data.synced_at);
-      showToast('還錢紀錄已同步 ✅', 'success');
-      recordSyncOk = true;
+      if (applyServerData(data, applySeq)) {
+        updateSyncStatus('success', data.synced_at);
+        showToast('還錢紀錄已同步 ✅', 'success');
+        recordSyncOk = true;
+      }
     } catch (err) {
       showToast(formatApiError(err), 'error');
     } finally {
-      isMutating = false;
+      endMutation();
       setLoading(false);
       if (recordSyncOk) onRecordSyncComplete();
     }
@@ -2573,9 +2653,12 @@ function setupEventListeners() {
 
   els.expenseForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!beginMutation()) return;
+
     const form = new FormData(els.expenseForm);
     const category = resolveCategory($('#expense-category'), $('#expense-custom-category'));
     if (!category) {
+      endMutation();
       showToast('請輸入自定分類名稱', 'error');
       return;
     }
@@ -2591,32 +2674,34 @@ function setupEventListeners() {
     };
 
     if (tx.amount <= 0) {
+      endMutation();
       showToast('請填寫有效金額', 'error');
       return;
     }
 
-    isMutating = true;
     setLoading(true);
+    const applySeq = beginServerApply();
     let recordSyncOk = false;
     try {
       tx.location = await captureCurrentLocation();
       const data = await syncAddTransaction(tx);
-      applyServerData(data);
-      updateSyncStatus('success', data.synced_at);
-      els.expenseForm.reset();
-      els.expenseDate.value = todayISO();
-      $('#expense-category').value = '餐飲-午餐';
-      $('#expense-custom-category-row').classList.add('hidden');
-      $('#expense-custom-category').value = '';
-      setToggleValue('#currency-toggle', '#expense-currency', 'currency', 'JPY');
-      updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
-      setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
-      showToast('已新增並同步至試算表 ✨', 'success');
-      recordSyncOk = true;
+      if (applyServerData(data, applySeq)) {
+        updateSyncStatus('success', data.synced_at);
+        els.expenseForm.reset();
+        els.expenseDate.value = todayISO();
+        $('#expense-category').value = '餐飲-午餐';
+        $('#expense-custom-category-row').classList.add('hidden');
+        $('#expense-custom-category').value = '';
+        setToggleValue('#currency-toggle', '#expense-currency', 'currency', 'JPY');
+        updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
+        setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
+        showToast('已新增並同步至試算表 ✨', 'success');
+        recordSyncOk = true;
+      }
     } catch (err) {
       showToast(formatApiError(err), 'error');
     } finally {
-      isMutating = false;
+      endMutation();
       setLoading(false);
       if (recordSyncOk) onRecordSyncComplete();
     }
@@ -2624,6 +2709,8 @@ function setupEventListeners() {
 
   els.budgetForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!beginMutation()) return;
+
     const newBudgets = {
       A: {
         JPY: Number($('#budget-a-jpy').value),
@@ -2635,32 +2722,39 @@ function setupEventListeners() {
       },
     };
 
-    isMutating = true;
     setLoading(true);
+    const applySeq = beginServerApply();
     try {
       const data = await syncBudgets(newBudgets);
-      applyServerData(data);
-      updateSyncStatus('success', data.synced_at);
-      closeModal(els.budgetModal);
-      showToast('預算已同步至試算表 💾', 'success');
+      if (applyServerData(data, applySeq)) {
+        updateSyncStatus('success', data.synced_at);
+        closeModal(els.budgetModal);
+        showToast('預算已同步至試算表 💾', 'success');
+      }
     } catch (err) {
       showToast(formatApiError(err), 'error');
     } finally {
-      isMutating = false;
+      endMutation();
       setLoading(false);
     }
   });
 
   els.editForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!beginMutation()) return;
+
     const key = $('#edit-transaction-key').value;
     const idx = transactions.findIndex(
       (t) => t.transaction_id === key || t._uid === key
     );
-    if (idx === -1) return;
+    if (idx === -1) {
+      endMutation();
+      return;
+    }
 
     const category = resolveCategory($('#edit-category'), $('#edit-custom-category'));
     if (!category) {
+      endMutation();
       showToast('請輸入自定分類名稱', 'error');
       return;
     }
@@ -2668,7 +2762,15 @@ function setupEventListeners() {
     const existing = transactions[idx];
     const transactionId = $('#edit-transaction-id').value || existing.transaction_id || '';
     if (!transactionId) {
+      endMutation();
       showToast('此紀錄尚未有試算表 ID，請先刷新', 'error');
+      return;
+    }
+
+    const amount = Number($('#edit-amount').value);
+    if (amount <= 0) {
+      endMutation();
+      showToast('請填寫有效金額', 'error');
       return;
     }
 
@@ -2679,31 +2781,27 @@ function setupEventListeners() {
       description: $('#edit-description').value.trim(),
       location: getLocationText(existing),
       currency: $('#edit-currency').value,
-      amount: Number($('#edit-amount').value),
+      amount,
       payer: $('#edit-payer').value,
-      split_mode:
-        existing.split_mode === 'REPAY'
-          ? 'REPAY'
-          : document.querySelector(
-              '#edit-split-options input[name="edit_split_mode"]:checked'
-            ).value,
+      split_mode: resolveEditSplitMode(existing),
     };
 
-    isMutating = true;
     setLoading(true);
+    const applySeq = beginServerApply();
     let recordSyncOk = false;
     try {
       const data = await syncEditTransaction(updated);
-      applyServerData(data);
-      updateSyncStatus('success', data.synced_at);
-      closeModal(els.editModal);
-      dismissDetailModal();
-      showToast('已更新並同步至試算表 💾', 'success');
-      recordSyncOk = true;
+      if (applyServerData(data, applySeq)) {
+        updateSyncStatus('success', data.synced_at);
+        closeModal(els.editModal);
+        dismissDetailModal();
+        showToast('已更新並同步至試算表 💾', 'success');
+        recordSyncOk = true;
+      }
     } catch (err) {
       showToast(formatApiError(err), 'error');
     } finally {
-      isMutating = false;
+      endMutation();
       setLoading(false);
       if (recordSyncOk) onRecordSyncComplete();
     }
@@ -2820,6 +2918,7 @@ async function init() {
     showToast(formatApiError(err), 'error');
     renderAll();
   }
+  updateMutationControls();
 }
 
 document.addEventListener('DOMContentLoaded', init);
