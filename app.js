@@ -80,6 +80,8 @@ const DEFAULT_BUDGETS = {
 };
 
 const SYNC_INTERVAL_MS = 15000;
+const API_TIMEOUT_MS = 55000;
+const API_MAX_RETRIES = 1;
 
 const CURRENCY_SYMBOL = {
   JPY: '¥',
@@ -291,7 +293,7 @@ function captureCurrentLocation() {
         resolve(`${lat}, ${lng}`);
       },
       () => resolve(''),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 120000 }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
     );
   });
 }
@@ -678,8 +680,8 @@ async function manualSync() {
   if (isMutating) return;
   try {
     await fetchAllData({ showSuccessToast: true });
-  } catch (_) {
-    showToast('同步失敗，請稍後再試', 'error');
+  } catch (err) {
+    showToast(formatApiError(err), 'error');
   }
 }
 
@@ -800,7 +802,7 @@ async function switchApiEndpoint(targetKey) {
     await fetchAllData();
     startAutoSync();
   } catch (err) {
-    showToast(err.message || '切換後無法連線，請再試一次', 'error');
+    showToast(formatApiError(err), 'error');
   }
 }
 
@@ -814,8 +816,36 @@ function isModalOpen() {
     !$('#sheet-switcher-modal').classList.contains('hidden');
 }
 
+function formatApiError(err) {
+  const msg = String(err?.message || err || '').trim();
+  if (!msg) return '同步失敗，請稍後再試';
+  if (msg.includes('逾時') || err?.name === 'AbortError') {
+    return `${msg.replace('AbortError', '連線逾時')}（Google 試算表回應較慢，通常再試一次就得）`;
+  }
+  if (
+    msg.includes('部署') ||
+    msg.includes('Apps Script') ||
+    msg.includes('舊版腳本') ||
+    msg.includes('連錯後端') ||
+    msg.includes('試算表')
+  ) {
+    return msg;
+  }
+  if (msg.startsWith('無法連線 API') || msg.startsWith('API HTTP')) {
+    return `${msg}（請檢查網絡，或稍後再試）`;
+  }
+  return msg;
+}
+
+function apiRequestShouldRetry(err, res, attempt) {
+  if (attempt >= API_MAX_RETRIES) return false;
+  if (err?.name === 'AbortError') return true;
+  if (res && [502, 503, 504].includes(res.status)) return true;
+  return false;
+}
+
 /* ===== API ===== */
-async function apiRequest(payload = {}) {
+async function apiRequest(payload = {}, attempt = 0) {
   API_URL = getApiUrl();
   const endpoint = getActiveEndpoint();
   const url = new URL(API_URL);
@@ -834,7 +864,7 @@ async function apiRequest(payload = {}) {
   url.searchParams.set('source', apiEndpointKey);
 
   const controller = new AbortController();
-  const timeoutMs = 25000;
+  const timeoutMs = API_TIMEOUT_MS;
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
   let res;
@@ -847,8 +877,13 @@ async function apiRequest(payload = {}) {
       signal: controller.signal,
     });
   } catch (err) {
+    window.clearTimeout(timeoutId);
+    if (apiRequestShouldRetry(err, null, attempt)) {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      return apiRequest(payload, attempt + 1);
+    }
     if (err && err.name === 'AbortError') {
-      throw new Error(`連線逾時（${timeoutMs / 1000}s），請稍後再試或檢查 Apps Script 部署`);
+      throw new Error(`連線逾時（>${timeoutMs / 1000}s）`);
     }
     throw new Error(`無法連線 API（${err.message}）`);
   } finally {
@@ -856,6 +891,10 @@ async function apiRequest(payload = {}) {
   }
 
   if (!res.ok) {
+    if (apiRequestShouldRetry(null, res, attempt)) {
+      await new Promise((resolve) => window.setTimeout(resolve, 900));
+      return apiRequest(payload, attempt + 1);
+    }
     throw new Error(`API HTTP ${res.status}`);
   }
 
@@ -2235,8 +2274,8 @@ async function confirmDeleteTransaction() {
     dismissDetailModal();
     showToast('紀錄已刪除 🗑️', 'success');
     recordSyncOk = true;
-  } catch (_) {
-    showToast('刪除失敗，請稍後再試', 'error');
+  } catch (err) {
+    showToast(formatApiError(err), 'error');
   } finally {
     isMutating = false;
     setLoading(false);
@@ -2258,8 +2297,8 @@ async function confirmClearAllData() {
     closePersonSpendModal();
     closeModal(els.editModal);
     showToast(`已清空「${getActiveEndpoint().label}」全部紀錄 🗑️`, 'success');
-  } catch (_) {
-    showToast('清空失敗，請確認 Apps Script 已部署 clearTransactions', 'error');
+  } catch (err) {
+    showToast(formatApiError(err), 'error');
   } finally {
     deleteConfirmMode = 'delete-one';
     isMutating = false;
@@ -2408,8 +2447,8 @@ function setupEventListeners() {
   $('#btn-refresh').addEventListener('click', async () => {
     try {
       await fetchAllData({ showSuccessToast: true });
-    } catch (_) {
-      showToast('刷新失敗，請稍後再試', 'error');
+    } catch (err) {
+      showToast(formatApiError(err), 'error');
     }
   });
 
@@ -2514,8 +2553,8 @@ function setupEventListeners() {
       updateSyncStatus('success', data.synced_at);
       showToast('還錢紀錄已同步 ✅', 'success');
       recordSyncOk = true;
-    } catch (_) {
-      showToast('還錢同步失敗，請確認 Apps Script 已部署', 'error');
+    } catch (err) {
+      showToast(formatApiError(err), 'error');
     } finally {
       isMutating = false;
       setLoading(false);
@@ -2574,8 +2613,8 @@ function setupEventListeners() {
       setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
       showToast('已新增並同步至試算表 ✨', 'success');
       recordSyncOk = true;
-    } catch (_) {
-      showToast('同步失敗，請確認 Apps Script 已部署', 'error');
+    } catch (err) {
+      showToast(formatApiError(err), 'error');
     } finally {
       isMutating = false;
       setLoading(false);
@@ -2604,8 +2643,8 @@ function setupEventListeners() {
       updateSyncStatus('success', data.synced_at);
       closeModal(els.budgetModal);
       showToast('預算已同步至試算表 💾', 'success');
-    } catch (_) {
-      showToast('預算同步失敗，請確認 Apps Script 已部署', 'error');
+    } catch (err) {
+      showToast(formatApiError(err), 'error');
     } finally {
       isMutating = false;
       setLoading(false);
@@ -2661,8 +2700,8 @@ function setupEventListeners() {
       dismissDetailModal();
       showToast('已更新並同步至試算表 💾', 'success');
       recordSyncOk = true;
-    } catch (_) {
-      showToast('更新同步失敗，請確認 Apps Script 已部署', 'error');
+    } catch (err) {
+      showToast(formatApiError(err), 'error');
     } finally {
       isMutating = false;
       setLoading(false);
@@ -2778,7 +2817,7 @@ async function init() {
     startAutoSync();
   } catch (err) {
     console.error('fetchAllData failed:', err);
-    showToast(err.message || '無法連線 Google Sheets，請部署 Apps Script', 'error');
+    showToast(formatApiError(err), 'error');
     renderAll();
   }
 }
