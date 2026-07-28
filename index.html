@@ -11,12 +11,20 @@
     <h1>✈️ 日本旅遊記帳 🇯🇵</h1>
     <div class="sync-bar">
       <button type="button" class="sync-status syncing" id="sync-status" aria-label="切換試算表來源">☁️ 連線試算表中…</button>
-      <button type="button" class="sync-btn" id="sync-btn" aria-label="手動同步" title="同步試算表">🔄</button>
+      <button type="button" class="sync-refresh-btn" id="sync-refresh-btn" aria-label="同步試算表">🔄 同步</button>
     </div>
   </header>
 
   <!-- Overlays must stay outside .app-container so cyberpunk stacking works -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="sync-banner" class="sync-banner hidden" role="status" aria-live="polite" aria-label="同步進度">
+    <div class="sync-banner-card">
+      <p class="sync-banner-text">☁️ 同步中… <span id="loading-percent">0%</span></p>
+      <div class="loading-progress" aria-hidden="true">
+        <div class="loading-progress-bar" id="loading-progress-bar"></div>
+      </div>
+    </div>
+  </div>
 
   <main class="app-container">
     <!-- Tab: 記一筆賬 (Home) -->
