@@ -1,9 +1,9 @@
-﻿/* ===== Configuration ===== */
+/* ===== Configuration ===== */
 const API_ENDPOINTS = {
   production: {
     label: '正式試算表',
     // 部署 apps-script/Code.production.gs 後，把 URL 貼這裡
-    url: 'https://script.google.com/macros/s/AKfycbx_nd8jTwptzqNIEFE0jYeyAAsooNiIw2JUlf4gSukgO8vRV4tiqu5FO_22ZeKXQt08XQ/exec',
+    url: 'https://script.google.com/macros/s/AKfycbyiH66phBQKi7XNfucyK3kc_qmX6bRdh5AlEEiJql2iTi9qYKAjieN5q9T1qyvED5PDnQ/exec',
     spreadsheetId: '1zOCbb5gvBsom2p7KVSjFx3-SVyN6G5wQFBvI4cOWWh0',
     sheetGid: '48656539',
     spreadsheetUrl:
@@ -87,6 +87,8 @@ const CURRENCY_SYMBOL = {
 };
 
 let detailModalKey = null;
+/** 詳情層級：由還錢「對應消費」再入另一筆時，關閉可返回上一層 */
+let detailModalStack = [];
 
 /* ===== State ===== */
 let transactions = [];
@@ -111,6 +113,17 @@ const listFilters = {
   currentPage: 1,
 };
 
+/** 'delete-one' | 'clear-all' */
+let deleteConfirmMode = 'delete-one';
+
+/** 人頭格 → 個人用左明細 */
+const personSpendView = {
+  person: null,
+  currency: null,
+  category: '',
+  sort: 'date-desc',
+};
+
 /* ===== DOM References ===== */
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -126,6 +139,7 @@ const els = {
   budgetModal: $('#budget-modal'),
   editModal: $('#edit-modal'),
   detailModal: $('#detail-modal'),
+  personSpendModal: $('#person-spend-modal'),
   repayModal: $('#repay-modal'),
   deleteConfirmModal: $('#delete-confirm-modal'),
 };
@@ -178,12 +192,29 @@ function setLoading(show) {
   }, 180);
 }
 
-function formatNumber(n) {
-  return Math.round(n).toLocaleString('zh-Hant');
+function formatNumber(n, currency = 'JPY') {
+  const num = Number(n) || 0;
+  if (currency === 'HKD') {
+    const rounded = Math.round(num * 100) / 100;
+    return rounded.toLocaleString('zh-Hant', {
+      minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
+      maximumFractionDigits: 2,
+    });
+  }
+  return Math.round(num).toLocaleString('zh-Hant');
 }
 
 function formatMoney(amount, currency) {
-  return `${getCurrencySymbol(currency)}${formatNumber(amount)}`;
+  return `${getCurrencySymbol(currency)}${formatNumber(amount, currency)}`;
+}
+
+/** JPY uses whole yen; HKD can be .5 from 一人一半. */
+function moneyEpsilon(currency) {
+  return currency === 'HKD' ? 0.005 : 0.5;
+}
+
+function isNegligibleMoney(amount, currency) {
+  return Math.abs(Number(amount) || 0) < moneyEpsilon(currency);
 }
 
 function moneyFigHtml(amount, currency, extraClass = '') {
@@ -253,9 +284,9 @@ function getCategoryLabel(category) {
 }
 
 function getTransactionTitle(tx) {
+  if (isRepayTransaction(tx)) return '還錢';
   const desc = String(tx.description || '').trim();
   if (desc) return desc;
-  if (isRepayTransaction(tx)) return '還錢';
   return getCategoryLabel(tx.category) || '（無描述）';
 }
 
@@ -423,6 +454,17 @@ function setDayFilter(day) {
   setDayRange(value, value);
 }
 
+/**
+ * 錢嘅記分板（好似兩個人共用一個玻璃樽）：
+ * - 正數 net_b_owes_a = B 欠 A
+ * - 負數 = A 欠 B
+ * - 接近 0 = 大家唔欠（一段數完結）
+ *
+ * 每筆點計（computeShares）：
+ * - 一人一半：畀錢嗰個墊咗一半 → 另一個欠一半
+ * - 幫 A / 幫 B：邊個幫邊個畀，邊個就要還
+ * - 還錢：淨係搬欠數，唔入旅費預算
+ */
 function computeShares(amount, payer, splitMode) {
   const amt = Number(amount) || 0;
   switch (splitMode) {
@@ -670,6 +712,11 @@ function openSheetSwitcher() {
     confirmBtn.dataset.target = otherKey;
   }
 
+  const clearHint = $('#sheet-clear-hint');
+  if (clearHint) {
+    clearHint.innerHTML = `清空<strong>目前「${escapeHtml(current.label)}」</strong>試算表嘅全部消費／還錢紀錄（預算保留）。刪除後無法復原。`;
+  }
+
   updateThemeControls();
   openModal($('#sheet-switcher-modal'));
 }
@@ -708,6 +755,7 @@ function isModalOpen() {
   return !els.budgetModal.classList.contains('hidden') ||
     !els.editModal.classList.contains('hidden') ||
     !els.detailModal.classList.contains('hidden') ||
+    (els.personSpendModal && !els.personSpendModal.classList.contains('hidden')) ||
     !els.repayModal.classList.contains('hidden') ||
     !els.deleteConfirmModal.classList.contains('hidden') ||
     !$('#sheet-switcher-modal').classList.contains('hidden');
@@ -887,6 +935,12 @@ async function syncBudgets(b) {
   });
 }
 
+async function syncClearAllTransactions() {
+  return apiRequest({
+    action: 'clearTransactions',
+  });
+}
+
 function startAutoSync() {
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = setInterval(async () => {
@@ -916,46 +970,223 @@ function calcSummary() {
   return { spent, net };
 }
 
-function calcHelpPaid() {
-  const bHelpedA = { JPY: 0, HKD: 0 };
-  const aHelpedB = { JPY: 0, HKD: 0 };
+function getSortedCurrencyTxs(currency) {
+  return transactions
+    .filter((t) => t.currency === currency)
+    .slice()
+    .sort((a, b) => {
+      const da = `${a.date || ''}T${formatRecordTime(a.time) || '00:00'}`;
+      const db = `${b.date || ''}T${formatRecordTime(b.time) || '00:00'}`;
+      const cmp = da.localeCompare(db);
+      if (cmp !== 0) return cmp;
+      return String(a.transaction_id || '').localeCompare(String(b.transaction_id || ''));
+    });
+}
 
-  for (const tx of transactions) {
-    const cur = tx.currency;
-    if (cur !== 'JPY' && cur !== 'HKD') continue;
-    if (isRepayTransaction(tx)) continue;
-    const amt = tx.amount;
-    switch (tx.split_mode) {
-      case 'FOR_A':
-        if (tx.payer === 'B') bHelpedA[cur] += amt;
-        break;
-      case 'FOR_B':
-        if (tx.payer === 'A') aHelpedB[cur] += amt;
-        break;
-      default:
-        if (tx.payer === 'A') aHelpedB[cur] += amt / 2;
-        else bHelpedA[cur] += amt / 2;
+/** Transactions after the last time this currency was fully settled. */
+function getSettlementCycleTxs(currency) {
+  const txs = getSortedCurrencyTxs(currency);
+  let running = 0;
+  let start = 0;
+  for (let i = 0; i < txs.length; i++) {
+    running += Number(txs[i].net_b_owes_a) || 0;
+    if (isNegligibleMoney(running, currency)) start = i + 1;
+  }
+  return txs.slice(start);
+}
+
+/** Cycle (一段數) that contains this transaction — works even after settled. */
+function getCycleContainingTransaction(tx) {
+  if (!tx) return [];
+  const currency = tx.currency;
+  const txs = getSortedCurrencyTxs(currency);
+  const key = getTxKey(tx);
+  let start = 0;
+  let running = 0;
+
+  for (let i = 0; i < txs.length; i++) {
+    running += Number(txs[i].net_b_owes_a) || 0;
+    const hitZero = isNegligibleMoney(running, currency);
+    const segment = txs.slice(start, i + 1);
+    const contains = segment.some((t) => getTxKey(t) === key);
+    if (hitZero) {
+      if (contains) return segment;
+      start = i + 1;
+      running = 0;
+    } else if (i === txs.length - 1 && contains) {
+      return txs.slice(start);
     }
   }
 
+  const open = getSettlementCycleTxs(currency);
+  if (open.some((t) => getTxKey(t) === key)) return open;
+  return [tx];
+}
+
+function calcHelpPaidInTxs(txs) {
+  let bHelpedA = 0;
+  let aHelpedB = 0;
+  for (const tx of txs) {
+    if (isRepayTransaction(tx)) continue;
+    const amt = Number(tx.amount) || 0;
+    switch (tx.split_mode) {
+      case 'FOR_A':
+        if (tx.payer === 'B') bHelpedA += amt;
+        break;
+      case 'FOR_B':
+        if (tx.payer === 'A') aHelpedB += amt;
+        break;
+      default:
+        if (tx.payer === 'A') aHelpedB += amt / 2;
+        else bHelpedA += amt / 2;
+    }
+  }
   return { bHelpedA, aHelpedB };
 }
 
+function calcHelpPaidInCycle(currency) {
+  return calcHelpPaidInTxs(getSettlementCycleTxs(currency));
+}
+
+function helpNetBOwesA(aHelpedB, bHelpedA) {
+  return (Number(aHelpedB) || 0) - (Number(bHelpedA) || 0);
+}
+
+function formatItemWhyLine(tx) {
+  const explained = explainTransactionNet(tx);
+  if (!explained.netLabel || isNegligibleMoney(explained.net, tx.currency)) {
+    return null;
+  }
+  const title = getTransactionTitle(tx);
+  const amount = formatMoney(tx.amount, tx.currency);
+  const date = tx.date || '';
+  const kind = isRepayTransaction(tx) ? '還錢' : getCategoryLabel(tx.category);
+  return {
+    title,
+    meta: `${date}${date ? ' · ' : ''}${kind} · ${amount}`,
+    netLabel: explained.netLabel,
+    netClass: explained.netClass || '',
+    key: getTxKey(tx),
+  };
+}
+
+/** 還錢詳情用：搵呢筆所屬嗰一段數（已清嗰段／而家未清嗰段）。 */
+function getRepayWhyCalcCycle(tx) {
+  if (!tx) return [];
+  const currency = tx.currency;
+  const key = getTxKey(tx);
+  const open = getSettlementCycleTxs(currency);
+  if (open.some((t) => getTxKey(t) === key)) return open;
+  return getCycleContainingTransaction(tx);
+}
+
+/**
+ * 呢筆還錢獨立切片：段初 → 呢筆之前 / 呢筆本身 / 還之後欠數。
+ * 唔會挾更遲嘅消費／還錢入「呢筆」故事。
+ */
+function getRepayIndependentSlice(tx) {
+  const cycle = getRepayWhyCalcCycle(tx);
+  const key = getTxKey(tx);
+  const idx = cycle.findIndex((t) => getTxKey(t) === key);
+  if (idx < 0) {
+    const net = Number(tx.net_b_owes_a) || 0;
+    return { cycle, before: [], self: tx, beforeNet: 0, afterNet: net };
+  }
+  const before = cycle.slice(0, idx);
+  const self = cycle[idx];
+  const beforeNet = before.reduce((sum, t) => sum + (Number(t.net_b_owes_a) || 0), 0);
+  const afterNet = beforeNet + (Number(self.net_b_owes_a) || 0);
+  return { cycle, before, self, beforeNet, afterNet };
+}
+
+/**
+ * 每筆還錢獨立計：
+ * ① 呢筆做咗咩
+ * ② 還之前欠幾多
+ * ③ 還之後欠幾多
+ * ④ 若之後仲有數，註明而家最新
+ */
+function buildWhyCalcItemsHtml(tx) {
+  if (!isRepayTransaction(tx)) return '';
+
+  const currency = tx.currency;
+  const { cycle, before, self, beforeNet, afterNet } = getRepayIndependentSlice(tx);
+  const expensesBefore = before.filter(
+    (t) => !isRepayTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, currency)
+  );
+  const latestNet = cycle.reduce((sum, t) => sum + (Number(t.net_b_owes_a) || 0), 0);
+  const payee = self.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A;
+  const payer = PERSON_EMOJI[self.payer] || self.payer;
+  const amount = formatMoney(Math.abs(Number(self.amount) || 0), currency);
+  const latestDiffers = !isNegligibleMoney(latestNet - afterNet, currency);
+
+  let html = `<div class="detail-why-items">`;
+  html += `<div class="detail-why-heading">① 呢筆做咗咩</div>`;
+  html += `<div class="detail-why-calc-line is-current">
+    <span class="detail-why-calc-label">${payer} 還咗 ${escapeHtml(amount)} 俾 ${payee}</span>
+  </div>`;
+
+  html += `<div class="detail-why-heading">② 呢筆還之前</div>`;
+  if (expensesBefore.length) {
+    html += `<ul class="detail-why-list">`;
+    expensesBefore.forEach((item) => {
+      const line = formatItemWhyLine(item);
+      if (!line) return;
+      html += `<li class="detail-why-row">
+        <button type="button" class="detail-why-btn" data-detail-key="${escapeHtml(line.key)}">
+          <span class="detail-why-main">
+            <span class="detail-why-title">${escapeHtml(line.title)}</span>
+            <span class="detail-why-meta">${escapeHtml(line.meta)}</span>
+          </span>
+          <span class="detail-why-net ${line.netClass}">${escapeHtml(line.netLabel)}</span>
+        </button>
+      </li>`;
+    });
+    html += `</ul>`;
+    html += `<div class="detail-why-calc-note">只列到呢筆之前會產生欠數嘅消費；更早嘅還錢已計入當時欠數</div>`;
+  } else {
+    html += `<p class="detail-why-empty">呢筆之前未有要互相還嘅消費（或淨係有更早還錢）</p>`;
+  }
+  html += `<div class="detail-why-calc-line">
+    <span class="detail-why-calc-label">當時欠數</span>
+    <span class="detail-why-calc-value">${escapeHtml(formatNetDirection(beforeNet, currency))}</span>
+  </div>`;
+
+  html += `<div class="detail-why-heading">③ 呢筆還之後</div>`;
+  html += `<div class="detail-why-result"><strong>變成：</strong>${escapeHtml(formatNetDirection(afterNet, currency))}</div>`;
+
+  if (latestDiffers) {
+    html += `<div class="detail-why-calc-note">之後仲有消費／還錢。而家最新：${escapeHtml(formatNetDirection(latestNet, currency))}</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+/** 總覽「邊個幫邊個畀」：大數對消先明；唔再用含糊嘅「之前計落」。 */
 function helpPayText(bHelpedA, aHelpedB, currency) {
   const parts = [];
-  if (bHelpedA > 0) {
-    parts.push(`${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${moneyFigHtml(bHelpedA, currency)}`);
-  }
   if (aHelpedB > 0) {
     parts.push(`${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀咗 ${moneyFigHtml(aHelpedB, currency)}`);
   }
-  if (!parts.length) return '暫無代付紀錄';
-  return parts.join(' · ');
+  if (bHelpedA > 0) {
+    parts.push(`${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${moneyFigHtml(bHelpedA, currency)}`);
+  }
+  if (!parts.length) return '';
+
+  const helpNet = helpNetBOwesA(aHelpedB, bHelpedA);
+  if (isNegligibleMoney(helpNet, currency)) {
+    return `<div class="help-pay-parts">${parts.join('<span class="help-pay-sep"> · </span>')}</div>
+      <div class="help-pay-net">對消後（未計還錢）大家唔欠</div>`;
+  }
+
+  return `<div class="help-pay-parts">${parts.join('<span class="help-pay-sep"> · </span>')}</div>
+    <div class="help-pay-net">對消後（未計還錢）${escapeHtml(formatNetDirection(helpNet, currency))}</div>`;
 }
 
 function getDebtInfo(currency) {
   const net = calcSummary().net[currency];
-  if (Math.abs(net) < 1) return null;
+  if (isNegligibleMoney(net, currency)) return null;
   if (net > 0) {
     return { payer: 'B', payee: 'A', amount: net };
   }
@@ -971,23 +1202,23 @@ function pickRepayCurrency() {
 }
 
 function settlementText(netAmount, currency) {
-  if (Math.abs(netAmount) < 1) {
+  if (isNegligibleMoney(netAmount, currency)) {
     return {
-      text: '🎉 目前雙方完全平帳，互不相欠！',
-      html: '🎉 目前雙方完全平帳，互不相欠！',
+      text: '🎉 而家大家唔欠，條數清晒！',
+      html: '🎉 而家大家唔欠，條數清晒！',
       balanced: true,
     };
   }
   if (netAmount > 0) {
     return {
-      text: `${PERSON_EMOJI.B} 需給 ${PERSON_EMOJI.A}：${formatMoney(netAmount, currency)}`,
-      html: `${PERSON_EMOJI.B} 需給 ${PERSON_EMOJI.A}：${moneyFigHtml(netAmount, currency, 'money-debt')}`,
+      text: `${PERSON_EMOJI.B} 要還俾 ${PERSON_EMOJI.A}：${formatMoney(netAmount, currency)}`,
+      html: `${PERSON_EMOJI.B} 要還俾 ${PERSON_EMOJI.A}：${moneyFigHtml(netAmount, currency, 'money-debt')}`,
       balanced: false,
     };
   }
   return {
-    text: `${PERSON_EMOJI.A} 需給 ${PERSON_EMOJI.B}：${formatMoney(Math.abs(netAmount), currency)}`,
-    html: `${PERSON_EMOJI.A} 需給 ${PERSON_EMOJI.B}：${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}`,
+    text: `${PERSON_EMOJI.A} 要還俾 ${PERSON_EMOJI.B}：${formatMoney(Math.abs(netAmount), currency)}`,
+    html: `${PERSON_EMOJI.A} 要還俾 ${PERSON_EMOJI.B}：${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}`,
     balanced: false,
   };
 }
@@ -1001,25 +1232,25 @@ function explainTransactionNet(tx) {
   let formula = '';
   if (isRepayTransaction(tx)) {
     const payee = tx.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A;
-    formula = `${payer} 還俾 ${payee} ${amount}（不計入消費，只調整淨欠款）`;
+    formula = `${payer} 還咗 ${amount} 俾 ${payee}（唔計入消費，淨係用嚟還數）`;
   } else switch (tx.split_mode) {
     case 'FOR_A':
       formula =
         tx.payer === 'A'
-          ? `${PERSON_EMOJI.A} 自己嘅，自己畀 → 互不欠帳`
-          : `${payer} 幫 ${PERSON_EMOJI.A} 畀 ${amount} → ${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A} ${amount}`;
+          ? `${PERSON_EMOJI.A} 自己嘅嘢，自己畀 → 唔使互相還`
+          : `${payer} 幫 ${PERSON_EMOJI.A} 畀咗 ${amount} → ${PERSON_EMOJI.A} 要還返 ${payer}`;
       break;
     case 'FOR_B':
       formula =
         tx.payer === 'B'
-          ? `${PERSON_EMOJI.B} 自己嘅，自己畀 → 互不欠帳`
-          : `${payer} 幫 ${PERSON_EMOJI.B} 畀 ${amount} → ${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B} ${amount}`;
+          ? `${PERSON_EMOJI.B} 自己嘅嘢，自己畀 → 唔使互相還`
+          : `${payer} 幫 ${PERSON_EMOJI.B} 畀咗 ${amount} → ${PERSON_EMOJI.B} 要還返 ${payer}`;
       break;
     default:
       formula =
         tx.payer === 'A'
-          ? `${payer} 先畀 ${amount}，${split} → ${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A} ${half}`
-          : `${payer} 先畀 ${amount}，${split} → ${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B} ${half}`;
+          ? `${payer} 先畀 ${amount}，一人一半 → ${PERSON_EMOJI.B} 要還一半 ${half}`
+          : `${payer} 先畀 ${amount}，一人一半 → ${PERSON_EMOJI.A} 要還一半 ${half}`;
   }
 
   const net = tx.net_b_owes_a;
@@ -1028,17 +1259,17 @@ function explainTransactionNet(tx) {
   if (isRepayTransaction(tx)) {
     if (net > 0) {
       netClass = 'positive';
-      netLabel = `淨欠款 +${formatMoney(net, tx.currency)}（${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B} 增加）`;
+      netLabel = `${PERSON_EMOJI.A} 還咗 ${formatMoney(Math.abs(net), tx.currency)}`;
     } else if (net < 0) {
       netClass = 'negative';
-      netLabel = `淨欠款 ${formatMoney(net, tx.currency)}（沖減 ${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A}）`;
+      netLabel = `${PERSON_EMOJI.B} 還咗 ${formatMoney(Math.abs(net), tx.currency)}`;
     }
   } else if (net > 0) {
     netClass = 'positive';
-    netLabel = `淨欠款 +${formatMoney(net, tx.currency)}（${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A}）`;
+    netLabel = `${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A} ${formatMoney(net, tx.currency)}`;
   } else if (net < 0) {
     netClass = 'negative';
-    netLabel = `淨欠款 ${formatMoney(net, tx.currency)}（${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B}）`;
+    netLabel = `${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B} ${formatMoney(Math.abs(net), tx.currency)}`;
   }
 
   return { formula, net, netClass, netLabel, split };
@@ -1051,7 +1282,7 @@ function buildTransactionDetailHtml(tx) {
   const timePart = tx.time ? ` · ${formatRecordTime(tx.time)}` : '';
   const desc = getTransactionTitle(tx);
   const rawDesc = String(tx.description || '').trim();
-  const showDesc = rawDesc && rawDesc !== desc;
+  const showDesc = !isRepayTransaction(tx) && rawDesc && rawDesc !== desc;
   const curClass = tx.currency === 'JPY' ? 'jpy' : 'hkd';
   const isRepay = isRepayTransaction(tx);
   const emojiHtml = isRepay
@@ -1098,7 +1329,7 @@ function buildTransactionDetailHtml(tx) {
   if (isRepay) {
     html += `
       <dt>📌 備註</dt>
-      <dd>此筆為還錢紀錄，唔會計入消費預算</dd>`;
+      <dd>${rawDesc ? escapeHtml(rawDesc) : '—'}</dd>`;
   } else {
     html += `
       <dt>${PERSON_EMOJI.A} 分攤</dt>
@@ -1107,27 +1338,64 @@ function buildTransactionDetailHtml(tx) {
       <dd>${moneyFigHtml(tx.b_share, tx.currency)}</dd>`;
   }
 
-  html += `
-    </dl>
-    <div class="detail-formula">
-      <div class="detail-formula-label">結算說明</div>
-      <div class="detail-formula-text">${escapeHtml(formula)}</div>`;
+  html += `</dl>`;
 
-  if (netLabel) {
-    html += `<div class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</div>`;
+  if (isRepay) {
+    html += `
+    <div class="detail-formula">
+      <div class="detail-formula-label">點解咁計</div>
+      <div class="detail-formula-text">${escapeHtml(formula)}</div>`;
+    if (netLabel) {
+      html += `<div class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</div>`;
+    }
+    html += buildWhyCalcItemsHtml(tx);
+    html += '</div>';
   }
 
-  html += '</div>';
   return html;
 }
 
-function openDetailModal(key) {
+function showDetailContent(key) {
   const tx = findTransactionByKey(key);
-  if (!tx) return;
+  if (!tx) {
+    dismissDetailModal();
+    return;
+  }
 
   detailModalKey = key;
   $('#detail-modal-body').innerHTML = buildTransactionDetailHtml(tx);
+  bindDetailTriggers($('#detail-modal-body'));
+  const closeBtn = els.detailModal.querySelector('.modal-close');
+  if (closeBtn) {
+    closeBtn.setAttribute('aria-label', detailModalStack.length ? '返回上一層詳情' : '關閉');
+  }
   openModal(els.detailModal);
+}
+
+function openDetailModal(key) {
+  const isOpen = !els.detailModal.classList.contains('hidden');
+  if (isOpen && detailModalKey && detailModalKey !== key) {
+    detailModalStack.push(detailModalKey);
+  } else if (!isOpen) {
+    detailModalStack = [];
+  }
+  showDetailContent(key);
+}
+
+function dismissDetailModal() {
+  detailModalStack = [];
+  detailModalKey = null;
+  closeModal(els.detailModal);
+}
+
+/** 有上一層詳情就返回；否則關閉 modal */
+function closeDetailModal() {
+  if (detailModalStack.length) {
+    const prevKey = detailModalStack.pop();
+    showDetailContent(prevKey);
+    return;
+  }
+  dismissDetailModal();
 }
 
 function bindDetailTriggers(container) {
@@ -1148,54 +1416,130 @@ function bindDetailTriggers(container) {
   });
 }
 
+function renderExplainStepItem(tx) {
+  const { netClass, netLabel } = explainTransactionNet(tx);
+  const txKey = escapeHtml(getTxKey(tx));
+  const tag = isRepayTransaction(tx)
+    ? '<span class="explain-step-tag explain-step-tag-repay">還錢</span>'
+    : '';
+  const desc = isRepayTransaction(tx)
+    ? `${PERSON_EMOJI[tx.payer] || tx.payer} 還咗 ${formatMoney(tx.amount, tx.currency)} 俾 ${tx.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A}`
+    : getTransactionTitle(tx);
+  return `<li class="explain-step-item">
+    <button type="button" class="explain-step-btn" data-detail-key="${txKey}" aria-label="查看詳情">
+      <span class="explain-step-desc">${tag}${escapeHtml(desc)}</span>
+      <span class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</span>
+      <span class="explain-step-chevron" aria-hidden="true">›</span>
+    </button>
+  </li>`;
+}
+
+function formatNetDirection(amount, currency) {
+  if (isNegligibleMoney(amount, currency)) {
+    return `大家唔欠 ${formatMoney(0, currency)}`;
+  }
+  if (amount > 0) {
+    return `${PERSON_EMOJI.B} 要還俾 ${PERSON_EMOJI.A} ${formatMoney(amount, currency)}`;
+  }
+  return `${PERSON_EMOJI.A} 要還俾 ${PERSON_EMOJI.B} ${formatMoney(Math.abs(amount), currency)}`;
+}
+
+/** 同方向未還清時：(對消後 − 已還) = 仲欠 */
+function formatRemainAfterRepayFormula(helpNet, netTotal, currency) {
+  if (isNegligibleMoney(netTotal, currency) || isNegligibleMoney(helpNet, currency)) {
+    return '';
+  }
+  const sameDir = (helpNet > 0 && netTotal > 0) || (helpNet < 0 && netTotal < 0);
+  if (!sameDir) return '';
+
+  const before = Math.abs(helpNet);
+  const remain = Math.abs(netTotal);
+  if (remain > before + moneyEpsilon(currency)) return '';
+
+  const repaid = before - remain;
+  if (isNegligibleMoney(repaid, currency)) return '';
+
+  return `(${formatMoney(before, currency)} − ${formatMoney(repaid, currency)}) = ${formatMoney(remain, currency)}`;
+}
+
 function renderSettlementExplain() {
+  const detailsEl = $('#settlement-explain-details');
+  let anyOpenDebt = false;
+
   ['JPY', 'HKD'].forEach((cur) => {
     const el = $(`#settlement-explain-${cur.toLowerCase()}`);
     if (!el) return;
 
     const badge = cur === 'JPY' ? '💴' : '💵';
-    const txs = transactions.filter((t) => t.currency === cur);
-    const netTotal = txs.reduce((sum, t) => sum + t.net_b_owes_a, 0);
-    const contributing = txs.filter((t) => Math.abs(t.net_b_owes_a) >= 1);
-    const terms = contributing.map((t) => {
-      const net = t.net_b_owes_a;
-      const sign = net > 0 ? '+' : '−';
-      return `${sign}${formatMoney(Math.abs(net), cur)}`;
-    });
+    const netTotal = calcSummary().net[cur];
+    const settled = isNegligibleMoney(netTotal, cur);
+    if (!settled) anyOpenDebt = true;
+
+    // 還清：提示去明細睇舊帳，並提供一鍵跳轉
+    if (settled) {
+      el.innerHTML = `<div class="explain-currency-label">${badge} ${cur}</div>
+        <p class="explain-empty">而家數清晒。想睇舊帳／還錢詳情，去「明細紀錄」撳嗰筆就得。</p>
+        <button type="button" class="btn btn-ghost btn-block explain-go-list-btn" data-go-list>📄 去明細紀錄</button>`;
+      return;
+    }
+
+    const cycleTxs = getSettlementCycleTxs(cur);
+    const expenseContrib = cycleTxs.filter(
+      (t) => !isRepayTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, cur)
+    );
+    const repayContrib = cycleTxs.filter(
+      (t) => isRepayTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, cur)
+    );
+    const { bHelpedA, aHelpedB } = calcHelpPaidInCycle(cur);
+    const helpNet = helpNetBOwesA(aHelpedB, bHelpedA);
 
     let html = `<div class="explain-currency-label">${badge} ${cur}</div>`;
-    html += `<p class="explain-rules-compact">加總每筆淨欠款：➕ ${PERSON_EMOJI.B}欠${PERSON_EMOJI.A} · ➖ ${PERSON_EMOJI.A}欠${PERSON_EMOJI.B}</p>`;
+    html += `<p class="explain-rules-compact">而家呢段未還清嘅數，點樣計出嚟</p>`;
 
-    if (txs.length === 0) {
-      html += `<p class="explain-empty">尚無 ${cur} 消費紀錄</p>`;
-    } else if (contributing.length === 0) {
-      html += `<div class="explain-sum-line">
-        <div><strong>加總：</strong><strong>${formatMoney(0, cur)}</strong>（全部互不欠帳）</div>
-      </div>`;
+    html += `<div class="explain-section">
+      <div class="explain-section-title">① 邊個幫邊個畀</div>`;
+    if (expenseContrib.length === 0) {
+      html += `<p class="explain-empty">未有要互相還嘅消費</p>`;
     } else {
-      html += `<ol class="explain-steps" aria-label="${cur} 明細">`;
-      contributing.forEach((tx) => {
-        const { netClass, netLabel } = explainTransactionNet(tx);
-        const txKey = escapeHtml(getTxKey(tx));
-        html += `<li class="explain-step-item">
-          <button type="button" class="explain-step-btn" data-detail-key="${txKey}" aria-label="查看 ${escapeHtml(getTransactionTitle(tx))} 詳情">
-            <span class="explain-step-desc">${escapeHtml(getTransactionTitle(tx))}</span>
-            <span class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</span>
-            <span class="explain-step-chevron" aria-hidden="true">›</span>
-          </button>
-        </li>`;
+      html += `<ol class="explain-steps" aria-label="${cur} 幫畀明細">`;
+      expenseContrib.forEach((tx) => {
+        html += renderExplainStepItem(tx);
       });
       html += '</ol>';
-
-      const sumExpr = terms.join(' ');
-      html += `<div class="explain-sum-line">
-        <div><strong>加總：</strong>${escapeHtml(sumExpr)} = <strong>${formatMoney(Math.abs(netTotal), cur)}</strong></div>
-      </div>`;
     }
+    html += `<div class="explain-sum-line explain-sum-sub">
+      <div>${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀咗 ${escapeHtml(formatMoney(aHelpedB, cur))} · ${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${escapeHtml(formatMoney(bHelpedA, cur))}</div>
+      <div><strong>對消後：</strong>${escapeHtml(formatNetDirection(helpNet, cur))}</div>
+    </div></div>`;
+
+    if (repayContrib.length) {
+      html += `<div class="explain-section">
+        <div class="explain-section-title">② 還錢紀錄</div>
+        <ol class="explain-steps" aria-label="${cur} 還錢明細">`;
+      repayContrib.forEach((t) => {
+        html += renderExplainStepItem(t);
+      });
+      html += `</ol></div>`;
+    }
+
+    const remainFormula = formatRemainAfterRepayFormula(helpNet, netTotal, cur);
+    html += `<div class="explain-sum-line explain-sum-final">
+      <div><strong>而家仲要還</strong>${remainFormula ? ` ${escapeHtml(remainFormula)}` : ''}</div>
+      <div class="explain-sum-result">${escapeHtml(formatNetDirection(netTotal, cur))}</div>
+    </div>`;
 
     el.innerHTML = html;
     bindDetailTriggers(el);
   });
+
+  detailsEl?.querySelectorAll('[data-go-list]').forEach((btn) => {
+    btn.addEventListener('click', () => switchTab('list'));
+  });
+
+  if (detailsEl) {
+    detailsEl.classList.remove('hidden');
+    if (!anyOpenDebt) detailsEl.open = false;
+  }
 
   updateExplainPreview();
 }
@@ -1203,26 +1547,12 @@ function renderSettlementExplain() {
 function updateExplainPreview() {
   const el = $('#settlement-explain-preview');
   if (!el) return;
-
-  const parts = [];
-  ['JPY', 'HKD'].forEach((cur) => {
-    const lower = cur.toLowerCase();
-    if (currencyView !== 'all' && currencyView !== lower) return;
-
-    const txs = transactions.filter((t) => t.currency === cur);
-    const netTotal = txs.reduce((sum, t) => sum + t.net_b_owes_a, 0);
-    const badge = cur === 'JPY' ? '💴' : '💵';
-    const { text, balanced } = settlementText(netTotal, cur);
-    parts.push(balanced ? `${badge} 平帳` : text);
-  });
-
-  el.textContent = parts.length ? parts.join(' · ') : '點擊展開';
+  el.textContent = '打開睇睇';
 }
 
 /* ===== Render ===== */
 function renderSummary() {
   const { spent, net } = calcSummary();
-  const { bHelpedA, aHelpedB } = calcHelpPaid();
 
   ['JPY', 'HKD'].forEach((cur) => {
     const lower = cur.toLowerCase();
@@ -1248,28 +1578,42 @@ function renderSummary() {
         });
     });
 
+    const settled = isNegligibleMoney(net[cur], cur);
     const settlement = settlementText(net[cur], cur);
+    const badge = cur === 'JPY' ? '💴' : '💵';
     const el = $(`#settlement-${lower}`);
-    el.innerHTML =
-      cur === 'JPY'
-        ? `💴 ${settlement.html}`
-        : `💵 ${settlement.html}`;
+    el.innerHTML = `${badge} ${settlement.html}`;
     el.classList.remove('balanced', 'debt');
     el.classList.add(settlement.balanced ? 'balanced' : 'debt');
 
     const helpEl = $(`#help-pay-${lower}`);
     if (helpEl) {
-      const badge = cur === 'JPY' ? '💴' : '💵';
-      helpEl.innerHTML = `${badge} ${helpPayText(bHelpedA[cur], aHelpedB[cur], cur)}`;
+      if (settled) {
+        helpEl.innerHTML = '';
+        helpEl.classList.add('is-settled-empty');
+      } else {
+        const { bHelpedA, aHelpedB } = calcHelpPaidInCycle(cur);
+        const html = helpPayText(bHelpedA, aHelpedB, cur);
+        helpEl.innerHTML = html ? `${badge} ${html}` : '';
+        helpEl.classList.toggle('is-settled-empty', !html);
+      }
     }
   });
 
-  const hasDebt =
-    Math.abs(net.JPY) >= 1 || Math.abs(net.HKD) >= 1;
-  $('#settlement-actions')?.classList.toggle('hidden', !hasDebt);
-
-  renderSettlementExplain();
+  updateSettlementChromeVisibility(net);
   applyCurrencyView();
+}
+
+function updateSettlementChromeVisibility(net = calcSummary().net) {
+  const jpyDebt = !isNegligibleMoney(net.JPY, 'JPY');
+  const hkdDebt = !isNegligibleMoney(net.HKD, 'HKD');
+  const showHelp =
+    currencyView === 'jpy' ? jpyDebt : currencyView === 'hkd' ? hkdDebt : jpyDebt || hkdDebt;
+  const showRepay =
+    currencyView === 'jpy' ? jpyDebt : currencyView === 'hkd' ? hkdDebt : jpyDebt || hkdDebt;
+
+  $('#help-pay-block')?.classList.toggle('hidden', !showHelp);
+  $('#settlement-actions')?.classList.toggle('hidden', !showRepay);
 }
 
 function getFilteredTransactions() {
@@ -1457,9 +1801,129 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function getPersonShare(tx, person) {
+  return person === 'B' ? Number(tx.b_share) || 0 : Number(tx.a_share) || 0;
+}
+
+function getPersonSpendRows() {
+  const { person, currency, category, sort } = personSpendView;
+  if (!person || !currency) return [];
+
+  let rows = transactions.filter((tx) => {
+    if (tx.currency !== currency) return false;
+    if (isRepayTransaction(tx)) return false;
+    const share = getPersonShare(tx, person);
+    if (isNegligibleMoney(share, currency)) return false;
+    if (!matchesCategoryFilter(tx.category, category)) return false;
+    return true;
+  });
+
+  rows = rows.slice().sort((a, b) => {
+    const shareA = getPersonShare(a, person);
+    const shareB = getPersonShare(b, person);
+    if (sort === 'amount-desc') return shareB - shareA;
+    if (sort === 'amount-asc') return shareA - shareB;
+    const da = `${a.date || ''}T${formatRecordTime(a.time) || '00:00'}`;
+    const db = `${b.date || ''}T${formatRecordTime(b.time) || '00:00'}`;
+    const cmp = da.localeCompare(db);
+    return sort === 'date-asc' ? cmp : -cmp;
+  });
+
+  return rows;
+}
+
+function renderPersonSpendList() {
+  const list = $('#person-spend-list');
+  const totalEl = $('#person-spend-total');
+  const titleEl = $('#person-spend-title');
+  if (!list || !personSpendView.person || !personSpendView.currency) return;
+
+  const person = personSpendView.person;
+  const currency = personSpendView.currency;
+  const emoji = PERSON_EMOJI[person] || person;
+  const rows = getPersonSpendRows();
+  const total = rows.reduce((sum, tx) => sum + getPersonShare(tx, person), 0);
+
+  if (titleEl) titleEl.textContent = `${emoji} 用左明細 · ${currency}`;
+  if (totalEl) {
+    totalEl.textContent = `合共用左 ${formatMoney(total, currency)} · ${rows.length} 筆`;
+  }
+
+  if (!rows.length) {
+    list.innerHTML = `<li class="person-spend-empty">呢個篩選之下未有用左紀錄</li>`;
+    return;
+  }
+
+  list.innerHTML = rows
+    .map((tx) => {
+      const share = getPersonShare(tx, person);
+      const curClass = currency === 'JPY' ? 'jpy' : 'hkd';
+      const key = escapeHtml(getTxKey(tx));
+      return `<li class="person-spend-row">
+        <button type="button" class="person-spend-row-btn" data-detail-key="${key}">
+          <span class="person-spend-row-main">
+            <span class="person-spend-row-title">${escapeHtml(getTransactionTitle(tx))}</span>
+            <span class="person-spend-row-meta">${escapeHtml(tx.date || '')} · ${escapeHtml(getCategoryLabel(tx.category))}</span>
+          </span>
+          <span class="person-spend-row-amount ${curClass}">${escapeHtml(formatMoney(share, currency))}</span>
+        </button>
+      </li>`;
+    })
+    .join('');
+
+  bindDetailTriggers(list);
+}
+
+function openPersonSpendModal(person, currency) {
+  if (!person || !currency) return;
+  personSpendView.person = person;
+  personSpendView.currency = currency;
+  personSpendView.category = '';
+  personSpendView.sort = 'date-desc';
+
+  const catEl = $('#person-spend-category');
+  const sortEl = $('#person-spend-sort');
+  if (catEl) catEl.value = '';
+  if (sortEl) sortEl.value = 'date-desc';
+
+  renderPersonSpendList();
+  openModal(els.personSpendModal);
+}
+
+function closePersonSpendModal() {
+  closeModal(els.personSpendModal);
+  personSpendView.person = null;
+  personSpendView.currency = null;
+}
+
+function setupPersonSpendUI() {
+  $$('.person-spend-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      openPersonSpendModal(btn.dataset.person, btn.dataset.currency);
+    });
+  });
+
+  $('#person-spend-category')?.addEventListener('change', (e) => {
+    personSpendView.category = e.target.value;
+    renderPersonSpendList();
+  });
+
+  $('#person-spend-sort')?.addEventListener('change', (e) => {
+    personSpendView.sort = e.target.value;
+    renderPersonSpendList();
+  });
+
+  $$('[data-close-person-spend]').forEach((el) => {
+    el.addEventListener('click', closePersonSpendModal);
+  });
+}
+
 function renderAll() {
   renderSummary();
   renderTransactionList();
+  if (els.personSpendModal && !els.personSpendModal.classList.contains('hidden')) {
+    renderPersonSpendList();
+  }
 }
 
 function populateBudgetForm() {
@@ -1487,9 +1951,18 @@ function getCurrencySymbol(currency) {
   return CURRENCY_SYMBOL[currency] || '$';
 }
 
+function sanitizeMoneyInputValue(value) {
+  let v = String(value || '').replace(/[^\d.]/g, '');
+  const dot = v.indexOf('.');
+  if (dot === -1) return v;
+  const head = v.slice(0, dot + 1);
+  const tail = v.slice(dot + 1).replace(/\./g, '').slice(0, 2);
+  return head + tail;
+}
+
 function bindMoneyInput(input) {
   input.addEventListener('input', () => {
-    input.value = input.value.replace(/\D/g, '');
+    input.value = sanitizeMoneyInputValue(input.value);
   });
 }
 
@@ -1544,6 +2017,15 @@ function openBudgetModal() {
   openModal(els.budgetModal);
 }
 
+function formatMoneyInputPreset(amount, currency) {
+  const num = Number(amount) || 0;
+  if (currency === 'HKD') {
+    const rounded = Math.round(num * 100) / 100;
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  }
+  return String(Math.round(num));
+}
+
 function updateRepayModalView() {
   const currency = $('#repay-currency').value;
   const debt = getDebtInfo(currency);
@@ -1553,7 +2035,7 @@ function updateRepayModalView() {
   const submitBtn = $('#repay-submit-btn');
 
   if (!debt) {
-    contextEl.textContent = `${currency === 'JPY' ? '💴' : '💵'} 此幣別已平帳，可以揀另一個幣別`;
+    contextEl.textContent = `${currency === 'JPY' ? '💴' : '💵'} 呢個幣別已經還清，可以轉第二個幣別`;
     amountEl.value = '';
     amountEl.disabled = true;
     payerEl.value = '';
@@ -1566,7 +2048,7 @@ function updateRepayModalView() {
   submitBtn.disabled = false;
   contextEl.textContent = `目前 ${PERSON_EMOJI[debt.payer]} 欠 ${PERSON_EMOJI[debt.payee]} ${formatMoney(debt.amount, currency)}`;
   if (!amountEl.dataset.touched) {
-    amountEl.value = Math.round(debt.amount);
+    amountEl.value = formatMoneyInputPreset(debt.amount, currency);
   }
   updateMoneyPrefix($('#repay-amount-prefix'), currency);
 }
@@ -1628,13 +2110,33 @@ async function deleteTransactionRecord() {
   const tx = findTransactionByKey(key);
   const title = tx ? getTransactionTitle(tx) : '此紀錄';
   const msg = $('#delete-confirm-message');
+  const titleEl = $('#delete-confirm-title');
+  if (titleEl) titleEl.textContent = '🗑️ 確認刪除';
   if (msg) {
     msg.textContent = `確定要刪除「${title}」？刪除後無法復原。`;
   }
+  deleteConfirmMode = 'delete-one';
+  openModal(els.deleteConfirmModal);
+}
+
+function openClearAllDataConfirm() {
+  const endpoint = getActiveEndpoint();
+  const msg = $('#delete-confirm-message');
+  const titleEl = $('#delete-confirm-title');
+  if (titleEl) titleEl.textContent = '🗑️ 清空全部紀錄';
+  if (msg) {
+    msg.textContent = `確定清空「${endpoint.label}」全部消費／還錢紀錄？預算會保留，刪除後無法復原。`;
+  }
+  deleteConfirmMode = 'clear-all';
   openModal(els.deleteConfirmModal);
 }
 
 async function confirmDeleteTransaction() {
+  if (deleteConfirmMode === 'clear-all') {
+    await confirmClearAllData();
+    return;
+  }
+
   const transactionId = $('#edit-transaction-id').value;
   const key = $('#edit-transaction-key').value;
   if (!transactionId) {
@@ -1654,13 +2156,35 @@ async function confirmDeleteTransaction() {
     updateSyncStatus('success', data.synced_at);
     closeModal(els.editModal);
     if (detailModalKey && tx && getTxKey(tx) === detailModalKey) {
-      closeModal(els.detailModal);
-      detailModalKey = null;
+      dismissDetailModal();
     }
     showToast('紀錄已刪除 🗑️', 'success');
   } catch (_) {
     showToast('刪除失敗，請稍後再試', 'error');
   } finally {
+    isMutating = false;
+    setLoading(false);
+  }
+}
+
+async function confirmClearAllData() {
+  closeModal(els.deleteConfirmModal);
+  closeModal($('#sheet-switcher-modal'));
+  isMutating = true;
+  setLoading(true);
+  try {
+    const data = await syncClearAllTransactions();
+    applyServerData(data);
+    updateSyncStatus('success', data.synced_at);
+    listFilters.currentPage = 1;
+    dismissDetailModal();
+    closePersonSpendModal();
+    closeModal(els.editModal);
+    showToast(`已清空「${getActiveEndpoint().label}」全部紀錄 🗑️`, 'success');
+  } catch (_) {
+    showToast('清空失敗，請確認 Apps Script 已部署 clearTransactions', 'error');
+  } finally {
+    deleteConfirmMode = 'delete-one';
     isMutating = false;
     setLoading(false);
   }
@@ -1762,7 +2286,8 @@ function applyCurrencyView() {
     panel.classList.toggle('hidden', !show);
   });
 
-  updateExplainPreview();
+  updateSettlementChromeVisibility();
+  renderSettlementExplain();
 }
 
 function setupCurrencyViewSelector() {
@@ -1799,11 +2324,16 @@ function setupEventListeners() {
     el.addEventListener('click', () => {
       closeModal(els.budgetModal);
       closeModal(els.editModal);
-      closeModal(els.detailModal);
+      dismissDetailModal();
+      closePersonSpendModal();
       closeModal(els.repayModal);
       closeModal(els.deleteConfirmModal);
       closeModal($('#sheet-switcher-modal'));
     });
+  });
+
+  $$('[data-close-detail]').forEach((el) => {
+    el.addEventListener('click', closeDetailModal);
   });
 
   $('#sync-status')?.addEventListener('click', () => {
@@ -1816,12 +2346,17 @@ function setupEventListeners() {
     switchApiEndpoint(target);
   });
 
+  $('#btn-clear-all-data')?.addEventListener('click', openClearAllDataConfirm);
+
   $('#delete-confirm-btn')?.addEventListener('click', () => {
     confirmDeleteTransaction();
   });
 
   $$('[data-close-delete-confirm]').forEach((el) => {
-    el.addEventListener('click', () => closeModal(els.deleteConfirmModal));
+    el.addEventListener('click', () => {
+      deleteConfirmMode = 'delete-one';
+      closeModal(els.deleteConfirmModal);
+    });
   });
 
   $('#btn-open-repay')?.addEventListener('click', openRepayModal);
@@ -1839,10 +2374,12 @@ function setupEventListeners() {
 
   $('#repay-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (isMutating) return;
+
     const currency = $('#repay-currency').value;
     const debt = getDebtInfo(currency);
     if (!debt) {
-      showToast('此幣別已平帳', 'info');
+      showToast('呢個幣別已經還清啦', 'info');
       return;
     }
 
@@ -1869,13 +2406,15 @@ function setupEventListeners() {
     };
 
     isMutating = true;
+    closeModal(els.repayModal);
     setLoading(true);
     try {
       tx.location = await captureCurrentLocation();
       const data = await syncAddTransaction(tx);
       applyServerData(data);
       updateSyncStatus('success', data.synced_at);
-      closeModal(els.repayModal);
+      listFilters.currentPage = 1;
+      switchTab('list');
       showToast('還錢紀錄已同步 ✅', 'success');
     } catch (_) {
       showToast('還錢同步失敗，請確認 Apps Script 已部署', 'error');
@@ -1888,7 +2427,7 @@ function setupEventListeners() {
   $('#detail-edit-btn').addEventListener('click', () => {
     if (!detailModalKey) return;
     const key = detailModalKey;
-    closeModal(els.detailModal);
+    dismissDetailModal();
     openEditModal(key);
   });
 
@@ -2126,6 +2665,7 @@ async function init() {
   setupCurrencyViewSelector();
   setupMoneyInputs();
   setupEventListeners();
+  setupPersonSpendUI();
   setupParticleEffects();
   setupThemeToggle();
 
