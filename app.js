@@ -2226,20 +2226,21 @@ async function confirmDeleteTransaction() {
   closeModal(els.deleteConfirmModal);
   isMutating = true;
   setLoading(true);
+  let recordSyncOk = false;
   try {
     const data = await syncDeleteTransaction(transactionId);
     applyServerData(data);
     updateSyncStatus('success', data.synced_at);
     closeModal(els.editModal);
-    if (detailModalKey && tx && getTxKey(tx) === detailModalKey) {
-      dismissDetailModal();
-    }
+    dismissDetailModal();
     showToast('紀錄已刪除 🗑️', 'success');
+    recordSyncOk = true;
   } catch (_) {
     showToast('刪除失敗，請稍後再試', 'error');
   } finally {
     isMutating = false;
     setLoading(false);
+    if (recordSyncOk) onRecordSyncComplete();
   }
 }
 
@@ -2351,6 +2352,13 @@ function switchTab(tabName) {
   $$('.tab-panel').forEach((panel) => {
     panel.classList.toggle('active', panel.id === `tab-${tabName}`);
   });
+}
+
+/** After a record mutation sync finishes, jump to 明細 and show the latest list. */
+function onRecordSyncComplete() {
+  listFilters.currentPage = 1;
+  switchTab('list');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function setupTabs() {
@@ -2498,19 +2506,20 @@ function setupEventListeners() {
     isMutating = true;
     closeModal(els.repayModal);
     setLoading(true);
+    let recordSyncOk = false;
     try {
       tx.location = await captureCurrentLocation();
       const data = await syncAddTransaction(tx);
       applyServerData(data);
       updateSyncStatus('success', data.synced_at);
-      listFilters.currentPage = 1;
-      switchTab('list');
       showToast('還錢紀錄已同步 ✅', 'success');
+      recordSyncOk = true;
     } catch (_) {
       showToast('還錢同步失敗，請確認 Apps Script 已部署', 'error');
     } finally {
       isMutating = false;
       setLoading(false);
+      if (recordSyncOk) onRecordSyncComplete();
     }
   });
 
@@ -2549,6 +2558,7 @@ function setupEventListeners() {
 
     isMutating = true;
     setLoading(true);
+    let recordSyncOk = false;
     try {
       tx.location = await captureCurrentLocation();
       const data = await syncAddTransaction(tx);
@@ -2562,14 +2572,14 @@ function setupEventListeners() {
       setToggleValue('#currency-toggle', '#expense-currency', 'currency', 'JPY');
       updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
       setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
-      listFilters.currentPage = 1;
-      switchTab('list');
       showToast('已新增並同步至試算表 ✨', 'success');
+      recordSyncOk = true;
     } catch (_) {
       showToast('同步失敗，請確認 Apps Script 已部署', 'error');
     } finally {
       isMutating = false;
       setLoading(false);
+      if (recordSyncOk) onRecordSyncComplete();
     }
   });
 
@@ -2642,17 +2652,21 @@ function setupEventListeners() {
 
     isMutating = true;
     setLoading(true);
+    let recordSyncOk = false;
     try {
       const data = await syncEditTransaction(updated);
       applyServerData(data);
       updateSyncStatus('success', data.synced_at);
       closeModal(els.editModal);
+      dismissDetailModal();
       showToast('已更新並同步至試算表 💾', 'success');
+      recordSyncOk = true;
     } catch (_) {
       showToast('更新同步失敗，請確認 Apps Script 已部署', 'error');
     } finally {
       isMutating = false;
       setLoading(false);
+      if (recordSyncOk) onRecordSyncComplete();
     }
   });
 }
