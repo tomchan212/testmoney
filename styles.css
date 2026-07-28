@@ -85,11 +85,8 @@ body {
 }
 
 html.theme-cyberpunk body {
-  background:
-    radial-gradient(circle at 12% 0%, rgba(255, 43, 214, 0.18), transparent 42%),
-    radial-gradient(circle at 88% 12%, rgba(0, 246, 255, 0.14), transparent 38%),
-    linear-gradient(180deg, #070712 0%, #05050d 100%);
-  background-attachment: fixed;
+  /* Solid base; gradients on ::after avoid iOS Safari breaking position:fixed */
+  background: #05050d;
 }
 
 html.theme-cyberpunk body::before {
@@ -103,6 +100,18 @@ html.theme-cyberpunk body::before {
     linear-gradient(90deg, rgba(255, 43, 214, 0.04) 1px, transparent 1px);
   background-size: 28px 28px;
   opacity: 0.55;
+}
+
+html.theme-cyberpunk body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 43, 214, 0.18), transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(0, 246, 255, 0.14), transparent 38%),
+    linear-gradient(180deg, #070712 0%, #05050d 100%);
 }
 
 html.theme-cyberpunk .app-header,
@@ -2338,9 +2347,14 @@ html.theme-cyberpunk .tab-nav {
   left: 0;
   right: 0;
   z-index: 900;
-  background: rgba(11, 11, 24, 0.94) !important;
+  background: rgba(11, 11, 24, 0.97) !important;
   border-top: 1px solid rgba(0, 246, 255, 0.2);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
+  transform: translate3d(0, 0, 0);
+  -webkit-transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 html.theme-cyberpunk .tab-btn {
@@ -2706,7 +2720,16 @@ html.theme-cyberpunk option {
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 4000;
+  z-index: 100;
+}
+
+/* iOS Safari: keep cyberpunk bottom nav visible and tappable in all scroll states */
+@supports (-webkit-touch-callout: none) {
+  html.theme-cyberpunk .tab-nav {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: #0b0b18 !important;
+  }
 }
 
 .modal-content-confirm {
