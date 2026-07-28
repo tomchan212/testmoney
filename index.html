@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
   <title>✈️ 日本旅遊記帳 🇯🇵</title>
-  <link rel="stylesheet" href="styles.css?v=20260728ba">
+  <link rel="stylesheet" href="styles.css?v=20260728bb">
 </head>
 <body>
   <header class="app-header">
@@ -315,6 +315,22 @@
         <li class="empty-state">載入中…</li>
       </ul>
       <div class="pagination-footer">
+        <div class="pagination-bar pagination-bar-bottom">
+          <div class="filter-item page-size-item">
+            <label for="filter-page-size-bottom">每頁顯示</label>
+            <select id="filter-page-size-bottom" aria-label="每頁顯示筆數">
+              <option value="10">10 筆</option>
+              <option value="20">20 筆</option>
+              <option value="50">50 筆</option>
+              <option value="all">全部</option>
+            </select>
+          </div>
+          <div class="pagination-nav" id="pagination-nav-bottom">
+            <button type="button" class="btn-page" id="btn-prev-bottom" disabled aria-label="上一頁">‹</button>
+            <div class="page-numbers" id="page-numbers-bottom"></div>
+            <button type="button" class="btn-page" id="btn-next-bottom" disabled aria-label="下一頁">›</button>
+          </div>
+        </div>
         <div class="pagination-info" id="pagination-info">共 0 筆</div>
       </div>
       </section>
@@ -615,6 +631,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260728ba"></script>
+  <script src="app.js?v=20260728bb"></script>
 </body>
 </html>

@@ -1742,29 +1742,27 @@ function getPageRange(current, total) {
   return result;
 }
 
-function renderPagination(meta) {
-  const info = $('#pagination-info');
-  const pageNumbers = $('#page-numbers');
-  const btnPrev = $('#btn-prev');
-  const btnNext = $('#btn-next');
+function syncPageSizeSelects(value) {
+  ['#filter-page-size', '#filter-page-size-bottom'].forEach((sel) => {
+    const el = $(sel);
+    if (el && el.value !== value) el.value = value;
+  });
+}
 
-  if (meta.total === 0) {
-    info.textContent = '共 0 筆';
+function renderPaginationBar(meta, suffix = '') {
+  const pageNumbers = $(`#page-numbers${suffix}`);
+  const btnPrev = $(`#btn-prev${suffix}`);
+  const btnNext = $(`#btn-next${suffix}`);
+
+  if (!pageNumbers || !btnPrev || !btnNext) return;
+
+  if (meta.total === 0 || listFilters.pageSize === 'all') {
     pageNumbers.innerHTML = '';
     btnPrev.disabled = true;
     btnNext.disabled = true;
     return;
   }
 
-  if (listFilters.pageSize === 'all') {
-    info.textContent = `共 ${meta.total} 筆（全部顯示）`;
-    pageNumbers.innerHTML = '';
-    btnPrev.disabled = true;
-    btnNext.disabled = true;
-    return;
-  }
-
-  info.textContent = `第 ${meta.page} / ${meta.totalPages} 頁，共 ${meta.total} 筆`;
   btnPrev.disabled = meta.page <= 1;
   btnNext.disabled = meta.page >= meta.totalPages;
 
@@ -1783,6 +1781,30 @@ function renderPagination(meta) {
       renderTransactionList();
     });
   });
+}
+
+function renderPagination(meta) {
+  const info = $('#pagination-info');
+
+  syncPageSizeSelects(listFilters.pageSize);
+
+  if (meta.total === 0) {
+    info.textContent = '共 0 筆';
+    renderPaginationBar(meta, '');
+    renderPaginationBar(meta, '-bottom');
+    return;
+  }
+
+  if (listFilters.pageSize === 'all') {
+    info.textContent = `共 ${meta.total} 筆（全部顯示）`;
+    renderPaginationBar(meta, '');
+    renderPaginationBar(meta, '-bottom');
+    return;
+  }
+
+  info.textContent = `第 ${meta.page} / ${meta.totalPages} 頁，共 ${meta.total} 筆`;
+  renderPaginationBar(meta, '');
+  renderPaginationBar(meta, '-bottom');
 }
 
 function renderTransactionList() {
@@ -2288,27 +2310,36 @@ function setupListFilters() {
     resetPage();
   });
 
-  $('#filter-page-size').addEventListener('change', (e) => {
+  const onPageSizeChange = (e) => {
     listFilters.pageSize = e.target.value;
+    syncPageSizeSelects(listFilters.pageSize);
     listFilters.currentPage = 1;
     renderTransactionList();
-  });
+  };
 
-  $('#btn-prev').addEventListener('click', () => {
+  $('#filter-page-size').addEventListener('change', onPageSizeChange);
+  $('#filter-page-size-bottom').addEventListener('change', onPageSizeChange);
+
+  const goPrevPage = () => {
     if (listFilters.currentPage > 1) {
       listFilters.currentPage -= 1;
       renderTransactionList();
     }
-  });
+  };
 
-  $('#btn-next').addEventListener('click', () => {
+  const goNextPage = () => {
     const filtered = getFilteredTransactions();
     const meta = paginateList(filtered);
     if (listFilters.currentPage < meta.totalPages) {
       listFilters.currentPage += 1;
       renderTransactionList();
     }
-  });
+  };
+
+  $('#btn-prev').addEventListener('click', goPrevPage);
+  $('#btn-prev-bottom').addEventListener('click', goPrevPage);
+  $('#btn-next').addEventListener('click', goNextPage);
+  $('#btn-next-bottom').addEventListener('click', goNextPage);
 }
 
 function switchTab(tabName) {
