@@ -226,8 +226,19 @@ function moneyFigHtml(amount, currency, extraClass = '') {
 function formatRecordTime(timeStr) {
   if (!timeStr) return '';
   const str = String(timeStr).trim();
-  if (/^\d{1,2}:\d{2}/.test(str)) return str.slice(0, 5);
-  return str;
+  const hm = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (hm) {
+    return `${String(hm[1]).padStart(2, '0')}:${hm[2]}`;
+  }
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleTimeString('zh-Hant', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
+  return str.slice(0, 5);
 }
 
 function formatTransactionMeta(tx) {
@@ -335,8 +346,12 @@ function setupCategorySelect(selectId, customRowId, customInputId) {
 
 function parseDate(dateStr) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr.slice(0, 10);
+  const str = String(dateStr).trim();
+  const isoDay = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDay) return `${isoDay[1]}-${isoDay[2]}-${isoDay[3]}`;
+
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str.slice(0, 10);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
@@ -345,9 +360,15 @@ function parseDate(dateStr) {
 
 function todayISO() {
   const now = new Date();
-  const offset = now.getTimezoneOffset();
-  const local = new Date(now.getTime() - offset * 60000);
-  return local.toISOString().slice(0, 10);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function nowLocalTimeHM() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
 function applySplitLabelsToDom() {
@@ -892,6 +913,7 @@ async function syncAddTransaction(tx) {
   return apiRequest({
     action: 'addTransaction',
     date: tx.date,
+    time: tx.time || nowLocalTimeHM(),
     category: tx.category,
     description: tx.description,
     location: tx.location || '',
@@ -2397,6 +2419,7 @@ function setupEventListeners() {
     const defaultDesc = `${PERSON_EMOJI[debt.payer]} 還俾 ${PERSON_EMOJI[debt.payee]}`;
     const tx = {
       date: todayISO(),
+      time: nowLocalTimeHM(),
       category: REPAY_CATEGORY,
       description: note || defaultDesc,
       currency,
@@ -2444,6 +2467,7 @@ function setupEventListeners() {
 
     const tx = {
       date: form.get('date'),
+      time: nowLocalTimeHM(),
       category,
       description: form.get('description').trim(),
       currency: $('#expense-currency').value,
