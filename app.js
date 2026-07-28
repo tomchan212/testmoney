@@ -22,6 +22,7 @@ const API_ENDPOINTS = {
 
 const API_STORAGE_KEY = 'money-api-endpoint';
 const THEME_STORAGE_KEY = 'money-theme';
+const LIST_DETAIL_STORAGE_KEY = 'money-list-detail-expanded';
 const PARTICLE_COLORS_LIGHT = ['#ff758c', '#ff7eb3', '#ffc2d1', '#fff0f3', '#f7c948', '#ffffff'];
 const PARTICLE_COLORS_CYBER = ['#ff2bd6', '#00f6ff', '#7a3cff', '#39ff14', '#ffffff', '#ff9f1c'];
 let PARTICLE_COLORS = PARTICLE_COLORS_LIGHT;
@@ -108,10 +109,13 @@ let lastSyncedAt = null;
 let currencyView = 'jpy';
 let loadingProgressTimer = null;
 let loadingProgressValue = 0;
+let listViewExpanded = true;
 
 const listFilters = {
   dayFrom: '',
   dayTo: '',
+  currency: '',
+  payer: '',
   sortAmount: '',
   sortDate: 'desc',
   category: '',
@@ -1784,6 +1788,12 @@ function getFilteredTransactions() {
   if (listFilters.splitMode) {
     list = list.filter((tx) => tx.split_mode === listFilters.splitMode);
   }
+  if (listFilters.currency) {
+    list = list.filter((tx) => tx.currency === listFilters.currency);
+  }
+  if (listFilters.payer) {
+    list = list.filter((tx) => tx.payer === listFilters.payer);
+  }
   if (listFilters.dayFrom) {
     list = list.filter((tx) => tx.date >= listFilters.dayFrom);
   }
@@ -1850,6 +1860,45 @@ function syncPageSizeSelects(value) {
   });
 }
 
+function loadListViewExpanded() {
+  try {
+    const saved = localStorage.getItem(LIST_DETAIL_STORAGE_KEY);
+    if (saved === null) return true;
+    return saved === '1';
+  } catch (_) {
+    return true;
+  }
+}
+
+function updateListDetailToggleButtons() {
+  const label = listViewExpanded ? '收起 ▲' : '展開 ▼';
+  const ariaLabel = listViewExpanded ? '收起明細詳情' : '展開明細詳情';
+  ['#btn-list-detail-toggle-top', '#btn-list-detail-toggle-bottom'].forEach((sel) => {
+    const btn = $(sel);
+    if (!btn) return;
+    btn.textContent = label;
+    btn.setAttribute('aria-expanded', listViewExpanded ? 'true' : 'false');
+    btn.setAttribute('aria-label', ariaLabel);
+  });
+}
+
+function applyListViewExpanded(expanded) {
+  listViewExpanded = expanded;
+  const card = $('#list-card');
+  card?.classList.toggle('list-compact', !expanded);
+  card?.classList.toggle('list-expanded', expanded);
+  try {
+    localStorage.setItem(LIST_DETAIL_STORAGE_KEY, expanded ? '1' : '0');
+  } catch (_) {}
+  updateListDetailToggleButtons();
+}
+
+function getPaginationInfoText(meta) {
+  if (meta.total === 0) return '共 0 筆';
+  if (listFilters.pageSize === 'all') return `共 ${meta.total} 筆（全部顯示）`;
+  return `第 ${meta.page} / ${meta.totalPages} 頁，共 ${meta.total} 筆`;
+}
+
 function renderPaginationBar(meta, suffix = '') {
   const pageNumbers = $(`#page-numbers${suffix}`);
   const btnPrev = $(`#btn-prev${suffix}`);
@@ -1885,25 +1934,26 @@ function renderPaginationBar(meta, suffix = '') {
 }
 
 function renderPagination(meta) {
+  const text = getPaginationInfoText(meta);
   const info = $('#pagination-info');
+  const infoTop = $('#pagination-info-top');
+  if (info) info.textContent = text;
+  if (infoTop) infoTop.textContent = text;
 
   syncPageSizeSelects(listFilters.pageSize);
 
   if (meta.total === 0) {
-    info.textContent = '共 0 筆';
     renderPaginationBar(meta, '');
     renderPaginationBar(meta, '-bottom');
     return;
   }
 
   if (listFilters.pageSize === 'all') {
-    info.textContent = `共 ${meta.total} 筆（全部顯示）`;
     renderPaginationBar(meta, '');
     renderPaginationBar(meta, '-bottom');
     return;
   }
 
-  info.textContent = `第 ${meta.page} / ${meta.totalPages} 頁，共 ${meta.total} 筆`;
   renderPaginationBar(meta, '');
   renderPaginationBar(meta, '-bottom');
 }
@@ -1938,12 +1988,15 @@ function renderTransactionList() {
       const iconHtml = isRepay
         ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span>'
         : emoji;
+      const timePart = tx.time ? ` · ${formatRecordTime(tx.time)}` : '';
+      const compactHint = `${tx.date}${timePart} · ${PERSON_EMOJI[tx.payer] || PERSON_EMOJI.A} · ${tx.currency}`;
 
       return `
         <li class="transaction-item${repayClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(getTransactionTitle(tx))} 詳情">
           <div class="tx-icon">${iconHtml}</div>
           <div class="tx-body">
             <div class="tx-title">${escapeHtml(getTransactionTitle(tx))}</div>
+            <div class="tx-compact-hint">${escapeHtml(compactHint)}</div>
             <div class="tx-meta">${formatTransactionMeta(tx)}</div>
             <div class="tx-tags">
               <span class="tx-tag payer" aria-label="${tx.payer === 'A' ? '男孩付款' : '女生付款'}">${payerLabel}</span>
@@ -2386,6 +2439,11 @@ function setupListFilters() {
     renderTransactionList();
   };
 
+  applyListViewExpanded(loadListViewExpanded());
+  const toggleListDetail = () => applyListViewExpanded(!listViewExpanded);
+  $('#btn-list-detail-toggle-top')?.addEventListener('click', toggleListDetail);
+  $('#btn-list-detail-toggle-bottom')?.addEventListener('click', toggleListDetail);
+
   $('#filter-sort-amount').addEventListener('change', (e) => {
     listFilters.sortAmount = e.target.value;
     resetPage();
@@ -2416,6 +2474,16 @@ function setupListFilters() {
 
   $('#filter-category').addEventListener('change', (e) => {
     listFilters.category = e.target.value;
+    resetPage();
+  });
+
+  $('#filter-currency').addEventListener('change', (e) => {
+    listFilters.currency = e.target.value;
+    resetPage();
+  });
+
+  $('#filter-payer').addEventListener('change', (e) => {
+    listFilters.payer = e.target.value;
     resetPage();
   });
 

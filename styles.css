@@ -1587,6 +1587,109 @@ button.currency-label.badge-all.active {
   text-align: center;
 }
 
+.list-result-bar,
+.pagination-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.list-result-bar {
+  margin-bottom: 0.65rem;
+  padding: 0.35rem 0.15rem 0;
+}
+
+.pagination-info-row {
+  margin-top: 0.15rem;
+  width: 100%;
+}
+
+.pagination-info-row .pagination-info,
+.list-result-bar .pagination-info {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+  text-align: left;
+}
+
+.btn-list-toggle {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--pink-start);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.2rem 0.35rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.btn-list-toggle:hover {
+  opacity: 0.85;
+}
+
+.btn-list-toggle:focus-visible {
+  outline: 2px solid var(--pink-start);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tx-compact-hint {
+  display: none;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-card.list-compact .tx-compact-hint {
+  display: block;
+}
+
+.list-card.list-compact .tx-meta,
+.list-card.list-compact .tx-tags,
+.list-card.list-compact .tx-currency,
+.list-card.list-compact .btn-edit-text {
+  display: none;
+}
+
+.list-card.list-compact .transaction-item {
+  padding: 0.55rem 0.75rem;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.list-card.list-compact .tx-icon {
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+}
+
+.list-card.list-compact .tx-title {
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-card.list-compact .tx-right {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.list-card.list-compact .btn-edit {
+  padding: 0.25rem 0.35rem;
+}
+
+.list-card.list-compact .transaction-list {
+  gap: 0.4rem;
+}
+
 .filter-item select,
 .filter-item input[type="date"] {
   width: 100%;
@@ -2779,6 +2882,16 @@ html.theme-cyberpunk .pagination-footer {
 }
 
 html.theme-cyberpunk .pagination-footer .pagination-info {
+  color: #9af7ff;
+}
+
+html.theme-cyberpunk .btn-list-toggle {
+  color: #ff2bd6;
+  text-shadow: 0 0 8px rgba(255, 43, 214, 0.35);
+}
+
+html.theme-cyberpunk .list-result-bar .pagination-info,
+html.theme-cyberpunk .pagination-info-row .pagination-info {
   color: #9af7ff;
 }
 

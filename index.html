@@ -230,7 +230,7 @@
 
     <!-- Tab: 明細紀錄 -->
     <div id="tab-list" class="tab-panel" role="tabpanel" aria-label="明細紀錄">
-      <section class="card list-card">
+      <section class="card list-card list-expanded" id="list-card">
       <div class="section-header">
         <h2>📄 明細紀錄</h2>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-refresh">🔄 刷新</button>
@@ -251,6 +251,22 @@
                 <input type="date" id="filter-day-to" aria-label="結束日期">
               </div>
             </div>
+          </div>
+          <div class="filter-item">
+            <label for="filter-currency">💱 幣別</label>
+            <select id="filter-currency">
+              <option value="">全部</option>
+              <option value="JPY">💴 JPY</option>
+              <option value="HKD">💵 HKD</option>
+            </select>
+          </div>
+          <div class="filter-item">
+            <label for="filter-payer">💳 邊個畀錢</label>
+            <select id="filter-payer">
+              <option value="">全部</option>
+              <option value="A">👦🏻 男孩</option>
+              <option value="B">👩🏻 女孩</option>
+            </select>
           </div>
           <div class="filter-item">
             <label for="filter-sort-amount">💰 價錢</label>
@@ -301,6 +317,7 @@
           <div class="filter-item page-size-item">
             <label for="filter-page-size">每頁顯示</label>
             <select id="filter-page-size">
+              <option value="5">5 筆</option>
               <option value="10">10 筆</option>
               <option value="20">20 筆</option>
               <option value="50">50 筆</option>
@@ -315,6 +332,11 @@
         </div>
       </div>
 
+      <div class="list-result-bar">
+        <span class="pagination-info" id="pagination-info-top">共 0 筆</span>
+        <button type="button" class="btn-list-toggle" id="btn-list-detail-toggle-top" aria-expanded="true" aria-label="收起明細詳情">收起 ▲</button>
+      </div>
+
       <ul id="transaction-list" class="transaction-list">
         <li class="empty-state">載入中…</li>
       </ul>
@@ -323,6 +345,7 @@
           <div class="filter-item page-size-item">
             <label for="filter-page-size-bottom">每頁顯示</label>
             <select id="filter-page-size-bottom" aria-label="每頁顯示筆數">
+              <option value="5">5 筆</option>
               <option value="10">10 筆</option>
               <option value="20">20 筆</option>
               <option value="50">50 筆</option>
@@ -335,7 +358,10 @@
             <button type="button" class="btn-page" id="btn-next-bottom" disabled aria-label="下一頁">›</button>
           </div>
         </div>
-        <div class="pagination-info" id="pagination-info">共 0 筆</div>
+        <div class="pagination-info-row">
+          <span class="pagination-info" id="pagination-info">共 0 筆</span>
+          <button type="button" class="btn-list-toggle" id="btn-list-detail-toggle-bottom" aria-expanded="true" aria-label="收起明細詳情">收起 ▲</button>
+        </div>
       </div>
       </section>
     </div>
@@ -635,6 +661,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260728bf"></script>
+  <script src="app.js?v=20260728bi"></script>
 </body>
 </html>
