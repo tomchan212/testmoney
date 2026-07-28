@@ -913,7 +913,7 @@ async function syncAddTransaction(tx) {
   return apiRequest({
     action: 'addTransaction',
     date: tx.date,
-    time: tx.time || nowLocalTimeHM(),
+    time: nowLocalTimeHM(),
     category: tx.category,
     description: tx.description,
     location: tx.location || '',
@@ -2419,7 +2419,6 @@ function setupEventListeners() {
     const defaultDesc = `${PERSON_EMOJI[debt.payer]} 還俾 ${PERSON_EMOJI[debt.payee]}`;
     const tx = {
       date: todayISO(),
-      time: nowLocalTimeHM(),
       category: REPAY_CATEGORY,
       description: note || defaultDesc,
       currency,
@@ -2467,7 +2466,6 @@ function setupEventListeners() {
 
     const tx = {
       date: form.get('date'),
-      time: nowLocalTimeHM(),
       category,
       description: form.get('description').trim(),
       currency: $('#expense-currency').value,

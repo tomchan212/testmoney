@@ -115,18 +115,19 @@ function readTransactions_() {
   const map = getHeaderIndexMap_(sheet);
   const lastCol = Math.max(sheet.getLastColumn(), 1);
   const values = sheet.getRange(2, 1, lastRow, lastCol).getValues();
+  const displays = sheet.getRange(2, 1, lastRow, lastCol).getDisplayValues();
 
   return values
-    .map(function(row) { return parseTransactionRow_(row, map); })
+    .map(function(row, idx) { return parseTransactionRow_(row, map, displays[idx]); })
     .filter(function(tx) { return tx.amount > 0; });
 }
 
-function parseTransactionRow_(row, map) {
+function parseTransactionRow_(row, map, displayRow) {
   if (map.time !== undefined) {
     return {
       transaction_id: txCell_(row, map, 'transaction_id'),
       date: formatDate_(txCellRaw_(row, map, 'date')),
-      time: formatTime_(txCellRaw_(row, map, 'time')),
+      time: txTime_(row, displayRow, map),
       category: txCell_(row, map, 'category'),
       description: txCell_(row, map, 'description'),
       currency: txCell_(row, map, 'currency'),
@@ -168,6 +169,21 @@ function txCellRaw_(row, map, name) {
 
 function txCell_(row, map, name) {
   return String(txCellRaw_(row, map, name) || '').trim();
+}
+
+function txTime_(row, displayRow, map) {
+  var i = map.time;
+  if (i === undefined) return '';
+  var display = displayRow ? String(displayRow[i] || '').trim() : '';
+  if (/^\d{1,2}:\d{2}/.test(display)) {
+    return formatTime_(display);
+  }
+  return formatTime_(row[i]);
+}
+
+function writeTimeCell_(sheet, rowNum, map, timeStr) {
+  var col = map.time !== undefined ? map.time + 1 : 3;
+  sheet.getRange(rowNum, col).setNumberFormat('@').setValue(String(timeStr));
 }
 
 function txNum_(value) {
@@ -292,6 +308,7 @@ function addTransaction_(params) {
     shares.net_b_owes_a,
     tx.location,
   ]);
+  writeTimeCell_(sheet, sheet.getLastRow(), getHeaderIndexMap_(sheet), recordTime);
 
   return getAllData_();
 }
@@ -326,6 +343,7 @@ function editTransaction_(params) {
     shares.net_b_owes_a,
     tx.location,
   ]]);
+  writeTimeCell_(sheet, rowIndex, getHeaderIndexMap_(sheet), recordTime);
 
   return getAllData_();
 }
@@ -463,8 +481,9 @@ function findBudgetRow_(sheet, person, currency) {
 
 /** Use client device time (HH:mm) when provided; otherwise fall back to script timezone. */
 function resolveRecordTime_(params, fallbackValue) {
-  if (params && params.time) {
-    return formatTime_(params.time);
+  var clientTime = params && params.time != null ? String(params.time).trim() : '';
+  if (clientTime) {
+    return formatTime_(clientTime);
   }
   return formatTime_(fallbackValue || new Date());
 }
@@ -472,7 +491,8 @@ function resolveRecordTime_(params, fallbackValue) {
 function formatTime_(value) {
   if (!value && value !== 0) return '';
   if (value instanceof Date) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm');
+    var tz = getSpreadsheet_().getSpreadsheetTimeZone() || Session.getScriptTimeZone();
+    return Utilities.formatDate(value, tz, 'HH:mm');
   }
   const str = String(value).trim();
   const hm = str.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
