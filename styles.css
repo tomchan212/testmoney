@@ -740,8 +740,19 @@ button.currency-label.badge-all.active {
   margin-bottom: 0.2rem;
 }
 
+.help-pay-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.help-pay-row {
+  white-space: nowrap;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .help-pay-net {
-  margin-top: 0.3rem;
   font-weight: 600;
   font-size: 0.8rem;
 }

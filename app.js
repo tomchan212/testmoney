@@ -1488,25 +1488,26 @@ function buildWhyCalcItemsHtml(tx) {
   return html;
 }
 
-/** 總覽「邊個幫邊個畀」：大數對消先明；唔再用含糊嘅「之前計落」。 */
+/** 總覽「邊個幫邊個畀」：每行一條，避免金額換行。 */
 function helpPayText(bHelpedA, aHelpedB, currency) {
-  const parts = [];
+  const rows = [];
   if (aHelpedB > 0) {
-    parts.push(`${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀咗 ${moneyFigHtml(aHelpedB, currency)}`);
+    rows.push(`${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀咗 ${moneyFigHtml(aHelpedB, currency)}`);
   }
   if (bHelpedA > 0) {
-    parts.push(`${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${moneyFigHtml(bHelpedA, currency)}`);
+    rows.push(`${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${moneyFigHtml(bHelpedA, currency)}`);
   }
-  if (!parts.length) return '';
+  if (!rows.length) return '';
 
   const helpNet = helpNetBOwesA(aHelpedB, bHelpedA);
-  if (isNegligibleMoney(helpNet, currency)) {
-    return `<div class="help-pay-parts">${parts.join('<span class="help-pay-sep"> · </span>')}</div>
-      <div class="help-pay-net">對消後（未計還錢）大家唔欠</div>`;
-  }
+  const netLine = isNegligibleMoney(helpNet, currency)
+    ? '對消後（未計還錢）大家唔欠'
+    : `對消後（未計還錢）${escapeHtml(formatNetDirection(helpNet, currency))}`;
 
-  return `<div class="help-pay-parts">${parts.join('<span class="help-pay-sep"> · </span>')}</div>
-    <div class="help-pay-net">對消後（未計還錢）${escapeHtml(formatNetDirection(helpNet, currency))}</div>`;
+  return `<div class="help-pay-stack">
+    ${rows.map((row) => `<div class="help-pay-row">${row}</div>`).join('')}
+    <div class="help-pay-row help-pay-net">${netLine}</div>
+  </div>`;
 }
 
 function getDebtInfo(currency) {
