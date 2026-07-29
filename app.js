@@ -29,8 +29,7 @@ let PARTICLE_COLORS = PARTICLE_COLORS_LIGHT;
 
 function resolveApiEndpoint() {
   const saved = localStorage.getItem(API_STORAGE_KEY);
-  // 先用測試表驗證 location 等新功能；要切回正式可在同步狀態切換
-  return saved === 'production' ? 'production' : 'tester';
+  return saved === 'tester' ? 'tester' : 'production';
 }
 
 function getActiveEndpoint() {
@@ -56,6 +55,7 @@ const CATEGORY_EMOJI = {
   便利店: '🏪',
   雜項: '📦',
   還錢: '🤝🏻',
+  借錢: '💸',
 };
 
 const PREDEFINED_CATEGORIES = Object.keys(CATEGORY_EMOJI);
@@ -71,9 +71,11 @@ const SPLIT_LABELS = {
   FOR_A: `${PERSON_EMOJI.A} 自己嘅`,
   FOR_B: `${PERSON_EMOJI.B} 自己嘅`,
   REPAY: '🤝🏻 還錢',
+  LOAN: '💸 借錢',
 };
 
 const REPAY_CATEGORY = '還錢';
+const LOAN_CATEGORY = '借錢';
 
 const DEFAULT_BUDGETS = {
   A: { JPY: 150000, HKD: 5000 },
@@ -153,6 +155,7 @@ const els = {
   detailModal: $('#detail-modal'),
   personSpendModal: $('#person-spend-modal'),
   repayModal: $('#repay-modal'),
+  loanModal: $('#loan-modal'),
   deleteConfirmModal: $('#delete-confirm-modal'),
 };
 
@@ -209,6 +212,7 @@ function updateMutationControls() {
   els.budgetForm?.querySelector('[type="submit"]')?.toggleAttribute('disabled', mutateBlocked);
   els.editForm?.querySelector('[type="submit"]')?.toggleAttribute('disabled', mutateBlocked);
   $('#repay-submit-btn')?.toggleAttribute('disabled', mutateBlocked);
+  $('#loan-submit-btn')?.toggleAttribute('disabled', mutateBlocked);
   $('#delete-confirm-btn')?.toggleAttribute('disabled', mutateBlocked);
 }
 
@@ -376,6 +380,7 @@ function getCategoryLabel(category) {
 
 function getTransactionTitle(tx) {
   if (isRepayTransaction(tx)) return '還錢';
+  if (isLoanTransaction(tx)) return '借錢';
   const desc = String(tx.description || '').trim();
   if (desc) return desc;
   return getCategoryLabel(tx.category) || '（無描述）';
@@ -383,6 +388,18 @@ function getTransactionTitle(tx) {
 
 function isRepayTransaction(tx) {
   return tx.split_mode === 'REPAY' || tx.category === REPAY_CATEGORY;
+}
+
+function isLoanTransaction(tx) {
+  return tx.split_mode === 'LOAN' || tx.category === LOAN_CATEGORY;
+}
+
+function isCashTransferTransaction(tx) {
+  return isRepayTransaction(tx) || isLoanTransaction(tx);
+}
+
+function getLoanBorrower(tx) {
+  return tx.payer === 'A' ? 'B' : 'A';
 }
 
 function matchesCategoryFilter(txCategory, filterValue) {
@@ -475,6 +492,7 @@ function applySplitLabelsToDom() {
       { value: 'FOR_A', label: SPLIT_LABELS.FOR_A },
       { value: 'FOR_B', label: SPLIT_LABELS.FOR_B },
       { value: 'REPAY', label: SPLIT_LABELS.REPAY },
+      { value: 'LOAN', label: SPLIT_LABELS.LOAN },
     ]
       .map(
         (o) =>
@@ -646,6 +664,7 @@ function computeShares(amount, payer, splitMode) {
         net_b_owes_a: payer === 'A' ? amt : 0,
       };
     case 'REPAY':
+    case 'LOAN':
       return {
         a_share: 0,
         b_share: 0,
@@ -936,6 +955,7 @@ function isModalOpen() {
     !els.detailModal.classList.contains('hidden') ||
     (els.personSpendModal && !els.personSpendModal.classList.contains('hidden')) ||
     !els.repayModal.classList.contains('hidden') ||
+    (els.loanModal && !els.loanModal.classList.contains('hidden')) ||
     !els.deleteConfirmModal.classList.contains('hidden') ||
     !$('#sheet-switcher-modal').classList.contains('hidden');
 }
@@ -1251,7 +1271,7 @@ function calcHelpPaidInTxs(txs) {
   let bHelpedA = 0;
   let aHelpedB = 0;
   for (const tx of txs) {
-    if (isRepayTransaction(tx)) continue;
+    if (isCashTransferTransaction(tx)) continue;
     const amt = Number(tx.amount) || 0;
     switch (tx.split_mode) {
       case 'FOR_A':
@@ -1284,7 +1304,7 @@ function formatItemWhyLine(tx) {
   const title = getTransactionTitle(tx);
   const amount = formatMoney(tx.amount, tx.currency);
   const date = tx.date || '';
-  const kind = isRepayTransaction(tx) ? '還錢' : getCategoryLabel(tx.category);
+  const kind = isRepayTransaction(tx) ? '還錢' : isLoanTransaction(tx) ? '借錢' : getCategoryLabel(tx.category);
   return {
     title,
     meta: `${date}${date ? ' · ' : ''}${kind} · ${amount}`,
@@ -1336,7 +1356,7 @@ function buildWhyCalcItemsHtml(tx) {
   const currency = tx.currency;
   const { cycle, before, self, beforeNet, afterNet } = getRepayIndependentSlice(tx);
   const expensesBefore = before.filter(
-    (t) => !isRepayTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, currency)
+    (t) => !isCashTransferTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, currency)
   );
   const latestNet = cycle.reduce((sum, t) => sum + (Number(t.net_b_owes_a) || 0), 0);
   const payee = self.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A;
@@ -1457,6 +1477,9 @@ function explainTransactionNet(tx) {
   if (isRepayTransaction(tx)) {
     const payee = tx.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A;
     formula = `${payer} 還咗 ${amount} 俾 ${payee}（唔計入消費，淨係用嚟還數）`;
+  } else if (isLoanTransaction(tx)) {
+    const payee = PERSON_EMOJI[getLoanBorrower(tx)];
+    formula = `${payer} 借咗 ${amount} 現金畀 ${payee}（唔計消費，淨係增加欠數）`;
   } else switch (tx.split_mode) {
     case 'FOR_A':
       formula =
@@ -1488,6 +1511,14 @@ function explainTransactionNet(tx) {
       netClass = 'negative';
       netLabel = `${PERSON_EMOJI.B} 還咗 ${formatMoney(Math.abs(net), tx.currency)}`;
     }
+  } else if (isLoanTransaction(tx)) {
+    if (net > 0) {
+      netClass = 'positive';
+      netLabel = `${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A} ${formatMoney(Math.abs(net), tx.currency)}`;
+    } else if (net < 0) {
+      netClass = 'negative';
+      netLabel = `${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B} ${formatMoney(Math.abs(net), tx.currency)}`;
+    }
   } else if (net > 0) {
     netClass = 'positive';
     netLabel = `${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A} ${formatMoney(net, tx.currency)}`;
@@ -1506,15 +1537,20 @@ function buildTransactionDetailHtml(tx) {
   const timePart = tx.time ? ` · ${formatRecordTime(tx.time)}` : '';
   const desc = getTransactionTitle(tx);
   const rawDesc = String(tx.description || '').trim();
-  const showDesc = !isRepayTransaction(tx) && rawDesc && rawDesc !== desc;
+  const showDesc = !isCashTransferTransaction(tx) && rawDesc && rawDesc !== desc;
   const curClass = tx.currency === 'JPY' ? 'jpy' : 'hkd';
   const isRepay = isRepayTransaction(tx);
+  const isLoan = isLoanTransaction(tx);
   const emojiHtml = isRepay
     ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span>'
-    : getCategoryEmoji(tx.category);
+    : isLoan
+      ? '💸'
+      : getCategoryEmoji(tx.category);
   const splitHtml = isRepay
     ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span> 還錢'
-    : escapeHtml(splitLabel);
+    : isLoan
+      ? '💸 借錢'
+      : escapeHtml(splitLabel);
 
   let html = `
     <div class="detail-hero">
@@ -1550,7 +1586,7 @@ function buildTransactionDetailHtml(tx) {
       <dt>💸 樣嘢點計</dt>
       <dd>${splitHtml}</dd>`;
 
-  if (isRepay) {
+  if (isRepay || isLoan) {
     html += `
       <dt>📌 備註</dt>
       <dd>${rawDesc ? escapeHtml(rawDesc) : '—'}</dd>`;
@@ -1573,6 +1609,15 @@ function buildTransactionDetailHtml(tx) {
       html += `<div class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</div>`;
     }
     html += buildWhyCalcItemsHtml(tx);
+    html += '</div>';
+  } else if (isLoan) {
+    html += `
+    <div class="detail-formula">
+      <div class="detail-formula-label">點解咁計</div>
+      <div class="detail-formula-text">${escapeHtml(formula)}</div>`;
+    if (netLabel) {
+      html += `<div class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</div>`;
+    }
     html += '</div>';
   }
 
@@ -1645,10 +1690,14 @@ function renderExplainStepItem(tx) {
   const txKey = escapeHtml(getTxKey(tx));
   const tag = isRepayTransaction(tx)
     ? '<span class="explain-step-tag explain-step-tag-repay">還錢</span>'
-    : '';
+    : isLoanTransaction(tx)
+      ? '<span class="explain-step-tag explain-step-tag-loan">借錢</span>'
+      : '';
   const desc = isRepayTransaction(tx)
     ? `${PERSON_EMOJI[tx.payer] || tx.payer} 還咗 ${formatMoney(tx.amount, tx.currency)} 俾 ${tx.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A}`
-    : getTransactionTitle(tx);
+    : isLoanTransaction(tx)
+      ? `${PERSON_EMOJI[tx.payer] || tx.payer} 借咗 ${formatMoney(tx.amount, tx.currency)} 畀 ${PERSON_EMOJI[getLoanBorrower(tx)]}`
+      : getTransactionTitle(tx);
   return `<li class="explain-step-item">
     <button type="button" class="explain-step-btn" data-detail-key="${txKey}" aria-label="查看詳情">
       <span class="explain-step-desc">${tag}${escapeHtml(desc)}</span>
@@ -1709,7 +1758,10 @@ function renderSettlementExplain() {
 
     const cycleTxs = getSettlementCycleTxs(cur);
     const expenseContrib = cycleTxs.filter(
-      (t) => !isRepayTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, cur)
+      (t) => !isCashTransferTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, cur)
+    );
+    const loanContrib = cycleTxs.filter(
+      (t) => isLoanTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, cur)
     );
     const repayContrib = cycleTxs.filter(
       (t) => isRepayTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, cur)
@@ -1736,9 +1788,19 @@ function renderSettlementExplain() {
       <div><strong>對消後：</strong>${escapeHtml(formatNetDirection(helpNet, cur))}</div>
     </div></div>`;
 
+    if (loanContrib.length) {
+      html += `<div class="explain-section">
+        <div class="explain-section-title">② 借錢（現金）</div>
+        <ol class="explain-steps" aria-label="${cur} 借錢明細">`;
+      loanContrib.forEach((t) => {
+        html += renderExplainStepItem(t);
+      });
+      html += `</ol></div>`;
+    }
+
     if (repayContrib.length) {
       html += `<div class="explain-section">
-        <div class="explain-section-title">② 還錢紀錄</div>
+        <div class="explain-section-title">${loanContrib.length ? '③' : '②'} 還錢紀錄</div>
         <ol class="explain-steps" aria-label="${cur} 還錢明細">`;
       repayContrib.forEach((t) => {
         html += renderExplainStepItem(t);
@@ -2049,15 +2111,18 @@ function renderTransactionList() {
       const splitLabel = SPLIT_LABELS[tx.split_mode] || tx.split_mode;
       const txKey = getTxKey(tx);
       const isRepay = isRepayTransaction(tx);
-      const repayClass = isRepay ? ' repay-item' : '';
+      const isLoan = isLoanTransaction(tx);
+      const specialClass = isRepay ? ' repay-item' : isLoan ? ' loan-item' : '';
       const iconHtml = isRepay
         ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span>'
-        : emoji;
+        : isLoan
+          ? '💸'
+          : emoji;
       const timePart = tx.time ? ` · ${formatRecordTime(tx.time)}` : '';
       const compactHint = `${tx.date}${timePart} · ${PERSON_EMOJI[tx.payer] || PERSON_EMOJI.A} · ${tx.currency}`;
 
       return `
-        <li class="transaction-item${repayClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(getTransactionTitle(tx))} 詳情">
+        <li class="transaction-item${specialClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(getTransactionTitle(tx))} 詳情">
           <div class="tx-icon">${iconHtml}</div>
           <div class="tx-body">
             <div class="tx-title">${escapeHtml(getTransactionTitle(tx))}</div>
@@ -2065,7 +2130,7 @@ function renderTransactionList() {
             <div class="tx-meta">${formatTransactionMeta(tx)}</div>
             <div class="tx-tags">
               <span class="tx-tag payer" aria-label="${tx.payer === 'A' ? '男孩付款' : '女生付款'}">${payerLabel}</span>
-              <span class="tx-tag split">${isRepay ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span> 還錢' : splitLabel}</span>
+              <span class="tx-tag split">${isRepay ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span> 還錢' : isLoan ? '💸 借錢' : splitLabel}</span>
             </div>
           </div>
           <div class="tx-right">
@@ -2107,6 +2172,7 @@ function getPersonSpendRows() {
   let rows = transactions.filter((tx) => {
     if (tx.currency !== currency) return false;
     if (isRepayTransaction(tx)) return false;
+    if (isLoanTransaction(tx)) return false;
     const share = getPersonShare(tx, person);
     if (isNegligibleMoney(share, currency)) return false;
     if (!matchesCategoryFilter(tx.category, category)) return false;
@@ -2361,8 +2427,42 @@ function openRepayModal() {
   openModal(els.repayModal);
 }
 
+function getLoanDirection() {
+  const raw = $('#loan-direction')?.value || 'A_TO_B';
+  return raw === 'B_TO_A' ? 'B_TO_A' : 'A_TO_B';
+}
+
+function getLoanLender(direction = getLoanDirection()) {
+  return direction === 'B_TO_A' ? 'B' : 'A';
+}
+
+function updateLoanModalView() {
+  const currency = $('#loan-currency').value;
+  const direction = getLoanDirection();
+  const lender = getLoanLender(direction);
+  const borrower = lender === 'A' ? 'B' : 'A';
+  const contextEl = $('#loan-context');
+  const submitBtn = $('#loan-submit-btn');
+
+  if (contextEl) {
+    contextEl.textContent = `${PERSON_EMOJI[lender]} 借現金畀 ${PERSON_EMOJI[borrower]}（唔計消費，淨係增加欠數）· ${currency}`;
+  }
+  updateMoneyPrefix($('#loan-amount-prefix'), currency);
+  if (submitBtn) submitBtn.disabled = isMutating;
+}
+
+function openLoanModal() {
+  setToggleValue('#loan-currency-toggle', '#loan-currency', 'currency', currencyView === 'hkd' ? 'HKD' : 'JPY');
+  setToggleValue('#loan-direction-toggle', '#loan-direction', 'direction', 'A_TO_B');
+  $('#loan-note').value = '';
+  $('#loan-amount').value = '';
+  updateLoanModalView();
+  openModal(els.loanModal);
+}
+
 function resolveEditSplitMode(existing) {
   if (existing.split_mode === 'REPAY' || isRepayTransaction(existing)) return 'REPAY';
+  if (existing.split_mode === 'LOAN' || isLoanTransaction(existing)) return 'LOAN';
   const checked = document.querySelector('#edit-split-options input[name="edit_split_mode"]:checked');
   return checked ? checked.value : (existing.split_mode || 'SPLIT_5050');
 }
@@ -2387,7 +2487,7 @@ function openEditModal(key) {
   setToggleValue('#edit-payer-toggle', '#edit-payer', 'payer', tx.payer);
   const splitRow = $('#edit-split-row');
   const payerRow = $('#edit-payer-row');
-  if (isRepayTransaction(tx)) {
+  if (isCashTransferTransaction(tx)) {
     splitRow.classList.add('hidden');
     payerRow.classList.add('hidden');
   } else {
@@ -2663,6 +2763,7 @@ function setupEventListeners() {
       dismissDetailModal();
       closePersonSpendModal();
       closeModal(els.repayModal);
+      closeModal(els.loanModal);
       closeModal(els.deleteConfirmModal);
       closeModal($('#sheet-switcher-modal'));
     });
@@ -2702,6 +2803,7 @@ function setupEventListeners() {
   });
 
   $('#btn-open-repay')?.addEventListener('click', openRepayModal);
+  $('#btn-open-loan')?.addEventListener('click', openLoanModal);
 
   setupToggle('#repay-currency-toggle', '#repay-currency', 'currency', 'JPY');
   $('#repay-currency-toggle').querySelectorAll('.toggle-btn').forEach((btn) => {
@@ -2760,6 +2862,62 @@ function setupEventListeners() {
       if (applyServerData(data, applySeq)) {
         updateSyncStatus('success', data.synced_at);
         showToast('還錢紀錄已同步 ✅', 'success');
+        recordSyncOk = true;
+      }
+    } catch (err) {
+      showToast(formatApiError(err), 'error');
+    } finally {
+      endMutation();
+      setLoading(false);
+      if (recordSyncOk) onRecordSyncComplete();
+    }
+  });
+
+  setupToggle('#loan-currency-toggle', '#loan-currency', 'currency', 'JPY');
+  setupToggle('#loan-direction-toggle', '#loan-direction', 'direction', 'A_TO_B');
+  $('#loan-currency-toggle')?.querySelectorAll('.toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => updateLoanModalView());
+  });
+  $('#loan-direction-toggle')?.querySelectorAll('.toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => updateLoanModalView());
+  });
+
+  $('#loan-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!beginMutation()) return;
+
+    const currency = $('#loan-currency').value;
+    const amount = Number($('#loan-amount').value);
+    if (amount <= 0) {
+      endMutation();
+      showToast('請填寫有效金額', 'error');
+      return;
+    }
+
+    const lender = getLoanLender();
+    const borrower = lender === 'A' ? 'B' : 'A';
+    const note = $('#loan-note').value.trim();
+    const defaultDesc = `${PERSON_EMOJI[lender]} 借錢畀 ${PERSON_EMOJI[borrower]}`;
+    const tx = {
+      date: todayISO(),
+      category: LOAN_CATEGORY,
+      description: note || defaultDesc,
+      currency,
+      amount,
+      payer: lender,
+      split_mode: 'LOAN',
+    };
+
+    closeModal(els.loanModal);
+    setLoading(true);
+    const applySeq = beginServerApply();
+    let recordSyncOk = false;
+    try {
+      tx.location = await captureCurrentLocation();
+      const data = await syncAddTransaction(tx);
+      if (applyServerData(data, applySeq)) {
+        updateSyncStatus('success', data.synced_at);
+        showToast('借錢紀錄已同步 💸', 'success');
         recordSyncOk = true;
       }
     } catch (err) {

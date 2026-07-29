@@ -210,6 +210,9 @@
           <div class="settlement-title"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span> 而家邊個欠邊個</div>
           <div id="settlement-jpy" class="settlement-line" data-currency-panel="jpy">—</div>
           <div id="settlement-hkd" class="settlement-line hidden" data-currency-panel="hkd">—</div>
+          <div class="settlement-loan-action">
+            <button type="button" class="btn btn-ghost btn-sm btn-block" id="btn-open-loan">💸 記錄借錢（現金）</button>
+          </div>
           <div class="settlement-actions hidden" id="settlement-actions">
             <button type="button" class="btn btn-primary btn-sm btn-block" id="btn-open-repay"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span> 記錄還錢</button>
           </div>
@@ -299,6 +302,7 @@
                     <option value="便利店">🏪 便利店</option>
                     <option value="雜項">📦 雜項</option>
                     <option value="還錢">🤝🏻 還錢</option>
+                    <option value="借錢">💸 借錢</option>
                     <option value="__custom__">✏️ 自定</option>
                   </select>
                 </div>
@@ -310,6 +314,7 @@
                     <option value="FOR_A">👦🏻 自己嘅</option>
                     <option value="FOR_B">👩🏻 自己嘅</option>
                     <option value="REPAY">🤝🏻 還錢</option>
+                    <option value="LOAN">💸 借錢</option>
                   </select>
                 </div>
                 <div class="filter-item">
@@ -432,6 +437,48 @@
           <input type="text" id="repay-note" placeholder="例：現金、PayMe">
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="repay-submit-btn">確認還錢 ✅</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Loan Modal -->
+  <div id="loan-modal" class="modal hidden" role="dialog" aria-labelledby="loan-modal-title" aria-modal="true">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="loan-modal-title">💸 記錄借錢</h3>
+        <button type="button" class="modal-close" data-close-modal aria-label="關閉">&times;</button>
+      </div>
+      <form id="loan-form">
+        <p class="loan-context" id="loan-context">—</p>
+        <div class="form-row">
+          <label>💱 幣別</label>
+          <div class="toggle-group" id="loan-currency-toggle">
+            <button type="button" class="toggle-btn active" data-currency="JPY">💴 JPY</button>
+            <button type="button" class="toggle-btn" data-currency="HKD">💵 HKD</button>
+          </div>
+          <input type="hidden" id="loan-currency" value="JPY">
+        </div>
+        <div class="form-row">
+          <label>🔄 邊個借畀邊個</label>
+          <div class="toggle-group" id="loan-direction-toggle">
+            <button type="button" class="toggle-btn active" data-direction="A_TO_B">👦🏻 借畀 👩🏻</button>
+            <button type="button" class="toggle-btn" data-direction="B_TO_A">👩🏻 借畀 👦🏻</button>
+          </div>
+          <input type="hidden" id="loan-direction" value="A_TO_B">
+        </div>
+        <div class="form-row">
+          <label for="loan-amount">💰 借錢金額</label>
+          <div class="money-input-wrap">
+            <span class="money-prefix prefix-jpy" id="loan-amount-prefix">¥</span>
+            <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="loan-amount" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="loan-note">📝 備註 <span class="label-optional">（選填）</span></label>
+          <input type="text" id="loan-note" placeholder="例：現金、PayMe、應急">
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="loan-submit-btn">確認借錢 💸</button>
       </form>
     </div>
   </div>
@@ -680,6 +727,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260728bk"></script>
+  <script src="app.js?v=20260729bm"></script>
 </body>
 </html>

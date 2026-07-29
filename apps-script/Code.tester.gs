@@ -427,6 +427,7 @@ function computeShares_(amount, payer, splitMode) {
         net_b_owes_a: payer === 'A' ? amt : 0,
       };
     case 'REPAY':
+    case 'LOAN':
       return {
         a_share: 0,
         b_share: 0,

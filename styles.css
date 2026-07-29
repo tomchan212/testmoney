@@ -793,7 +793,8 @@ button.currency-label.badge-all.active {
   margin-top: 0.55rem;
 }
 
-.repay-context {
+.repay-context,
+.loan-context {
   font-size: 0.88rem;
   line-height: 1.5;
   color: var(--text-dark);
@@ -803,14 +804,33 @@ button.currency-label.badge-all.active {
   margin-bottom: 0.875rem;
 }
 
+.settlement-loan-action {
+  margin-top: 0.55rem;
+}
+
 .transaction-item.repay-item {
   background: linear-gradient(135deg, #f7fbff, #eef6ff);
   border-color: #c8dff5;
 }
 
+.transaction-item.loan-item {
+  background: linear-gradient(135deg, #fff9f0, #fff4e6);
+  border-color: #f0dcc0;
+}
+
 .transaction-item.repay-item .tx-tag.split {
   background: #e8f2fc;
   color: #3a6ea5;
+}
+
+.transaction-item.loan-item .tx-tag.split {
+  background: #fff0db;
+  color: #b8741a;
+}
+
+.explain-step-tag-loan {
+  background: #fff0db;
+  color: #b8741a;
 }
 
 .settlement-explain-details {
@@ -2827,6 +2847,11 @@ html.theme-cyberpunk .transaction-item.repay-item {
   border-color: rgba(0, 246, 255, 0.3);
 }
 
+html.theme-cyberpunk .transaction-item.loan-item {
+  background: linear-gradient(135deg, rgba(255, 159, 28, 0.12), rgba(255, 43, 214, 0.08)) !important;
+  border-color: rgba(255, 159, 28, 0.35);
+}
+
 html.theme-cyberpunk .tx-tag.payer {
   background: rgba(255, 43, 214, 0.18) !important;
   color: #ff9adf;
@@ -2866,6 +2891,7 @@ html.theme-cyberpunk .explain-step-btn,
 html.theme-cyberpunk .explain-sum-line,
 html.theme-cyberpunk .detail-formula,
 html.theme-cyberpunk .repay-context,
+html.theme-cyberpunk .loan-context,
 html.theme-cyberpunk .settlement-explain-details,
 html.theme-cyberpunk .settlement-explain-summary,
 html.theme-cyberpunk .help-pay-block {
