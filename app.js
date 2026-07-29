@@ -126,6 +126,9 @@ const listFilters = {
   currentPage: 1,
 };
 
+/** 總覽「點計出嚟？」scroll 區最大高度（約 5–6 行） */
+const EXPLAIN_SCROLL_MAX = 260;
+
 /** 'delete-one' | 'clear-all' */
 let deleteConfirmMode = 'delete-one';
 
@@ -276,16 +279,21 @@ function setLoading(show) {
   }, 180);
 }
 
+function roundMoney(amount, currency) {
+  const num = Number(amount) || 0;
+  if (currency === 'HKD') return Math.round(num * 100) / 100;
+  return Math.round(num);
+}
+
 function formatNumber(n, currency = 'JPY') {
-  const num = Number(n) || 0;
+  const rounded = roundMoney(n, currency);
   if (currency === 'HKD') {
-    const rounded = Math.round(num * 100) / 100;
     return rounded.toLocaleString('zh-Hant', {
       minimumFractionDigits: Number.isInteger(rounded) ? 0 : 2,
       maximumFractionDigits: 2,
     });
   }
-  return Math.round(num).toLocaleString('zh-Hant');
+  return rounded.toLocaleString('zh-Hant');
 }
 
 function formatMoney(amount, currency) {
@@ -646,8 +654,41 @@ function setDayFilter(day) {
  * 每筆點計（computeShares）：
  * - 一人一半：畀錢嗰個墊咗一半 → 另一個欠一半
  * - 幫 A / 幫 B：邊個幫邊個畀，邊個就要還
- * - 還錢：淨係搬欠數，唔入旅費預算
+ * - 還錢 / 借錢：淨係搬欠數，唔入旅費預算；借幾多欠幾多（唔會除二）
  */
+function resolveSplitModeForCompute(tx) {
+  if (tx.split_mode === 'LOAN' || tx.category === LOAN_CATEGORY) return 'LOAN';
+  if (tx.split_mode === 'REPAY' || tx.category === REPAY_CATEGORY) return 'REPAY';
+  return tx.split_mode || 'SPLIT_5050';
+}
+
+function enrichTransaction(tx) {
+  const splitMode = resolveSplitModeForCompute(tx);
+  const trustStoredShares =
+    splitMode !== 'LOAN' &&
+    splitMode !== 'REPAY' &&
+    tx.a_share !== '' &&
+    tx.a_share != null &&
+    !isNaN(Number(tx.a_share));
+
+  const shares = trustStoredShares
+    ? {
+        a_share: Number(tx.a_share),
+        b_share: Number(tx.b_share),
+        net_b_owes_a: Number(tx.net_b_owes_a),
+      }
+    : computeShares(tx.amount, tx.payer, splitMode);
+
+  return {
+    ...tx,
+    split_mode: splitMode,
+    ...shares,
+    date: parseDate(tx.date),
+    time: formatRecordTime(tx.time),
+    location: String(tx.location || '').trim(),
+  };
+}
+
 function computeShares(amount, payer, splitMode) {
   const amt = Number(amount) || 0;
   switch (splitMode) {
@@ -677,24 +718,6 @@ function computeShares(amount, payer, splitMode) {
         net_b_owes_a: payer === 'A' ? amt / 2 : -amt / 2,
       };
   }
-}
-
-function enrichTransaction(tx) {
-  const shares =
-    tx.a_share !== '' && tx.a_share != null && !isNaN(Number(tx.a_share))
-      ? {
-          a_share: Number(tx.a_share),
-          b_share: Number(tx.b_share),
-          net_b_owes_a: Number(tx.net_b_owes_a),
-        }
-      : computeShares(tx.amount, tx.payer, tx.split_mode);
-  return {
-    ...tx,
-    ...shares,
-    date: parseDate(tx.date),
-    time: formatRecordTime(tx.time),
-    location: String(tx.location || '').trim(),
-  };
 }
 
 function getTxKey(tx) {
@@ -1267,25 +1290,83 @@ function getCycleContainingTransaction(tx) {
   return [tx];
 }
 
+function getHelpPayColumns(tx) {
+  if (isCashTransferTransaction(tx)) return { aHelpedB: 0, bHelpedA: 0 };
+  const amt = Number(tx.amount) || 0;
+  switch (tx.split_mode) {
+    case 'FOR_A':
+      return { aHelpedB: 0, bHelpedA: tx.payer === 'B' ? amt : 0 };
+    case 'FOR_B':
+      return { aHelpedB: tx.payer === 'A' ? amt : 0, bHelpedA: 0 };
+    default:
+      if (tx.payer === 'A') return { aHelpedB: amt / 2, bHelpedA: 0 };
+      if (tx.payer === 'B') return { aHelpedB: 0, bHelpedA: amt / 2 };
+      return { aHelpedB: 0, bHelpedA: 0 };
+  }
+}
+
 function calcHelpPaidInTxs(txs) {
   let bHelpedA = 0;
   let aHelpedB = 0;
   for (const tx of txs) {
-    if (isCashTransferTransaction(tx)) continue;
-    const amt = Number(tx.amount) || 0;
-    switch (tx.split_mode) {
-      case 'FOR_A':
-        if (tx.payer === 'B') bHelpedA += amt;
-        break;
-      case 'FOR_B':
-        if (tx.payer === 'A') aHelpedB += amt;
-        break;
-      default:
-        if (tx.payer === 'A') aHelpedB += amt / 2;
-        else bHelpedA += amt / 2;
-    }
+    const cols = getHelpPayColumns(tx);
+    aHelpedB += cols.aHelpedB;
+    bHelpedA += cols.bHelpedA;
   }
   return { bHelpedA, aHelpedB };
+}
+
+function buildHelpPayMatrixHtml(txs, currency) {
+  const rows = txs
+    .map((tx) => ({ tx, ...getHelpPayColumns(tx) }))
+    .filter((row) => row.aHelpedB > 0 || row.bHelpedA > 0);
+
+  if (!rows.length) return '';
+
+  let aTotal = 0;
+  let bTotal = 0;
+  const bodyRows = rows
+    .map(({ tx, aHelpedB, bHelpedA }) => {
+      aTotal += aHelpedB;
+      bTotal += bHelpedA;
+      const title = escapeHtml(getTransactionTitle(tx));
+      const aCell = aHelpedB > 0 ? escapeHtml(formatMoney(aHelpedB, currency)) : '—';
+      const bCell = bHelpedA > 0 ? escapeHtml(formatMoney(bHelpedA, currency)) : '—';
+      const txKey = escapeHtml(getTxKey(tx));
+      return `<tr class="help-pay-matrix-row" data-detail-key="${txKey}" tabindex="0" role="button" aria-label="查看詳情">
+        <td class="help-pay-matrix-desc">${title}</td>
+        <td class="help-pay-matrix-amt">${aCell}</td>
+        <td class="help-pay-matrix-amt">${bCell}</td>
+      </tr>`;
+    })
+    .join('');
+
+  const helpNet = helpNetBOwesA(aTotal, bTotal);
+  const netFormula = `${escapeHtml(formatMoney(aTotal, currency))} − ${escapeHtml(formatMoney(bTotal, currency))} = ${escapeHtml(formatNetDirection(helpNet, currency))}`;
+
+  const scrollTable = `<div class="explain-scroll-wrap explain-scroll-matrix" style="max-height:${EXPLAIN_SCROLL_MAX}px">
+    <table class="help-pay-matrix" aria-label="幫畀對照表">
+      <thead>
+        <tr>
+          <th scope="col">記錄</th>
+          <th scope="col">${PERSON_EMOJI.A}→${PERSON_EMOJI.B}</th>
+          <th scope="col">${PERSON_EMOJI.B}→${PERSON_EMOJI.A}</th>
+        </tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+    </table>
+  </div>`;
+
+  const footer = `<div class="help-pay-matrix-footer">
+    <div class="help-pay-matrix-total-row">
+      <span>小計</span>
+      <span>${escapeHtml(formatMoney(aTotal, currency))}</span>
+      <span>${escapeHtml(formatMoney(bTotal, currency))}</span>
+    </div>
+    <div class="help-pay-matrix-net-row"><strong>對消：</strong>${netFormula}</div>
+  </div>`;
+
+  return scrollTable + footer + buildExplainScrollHint(rows.length);
 }
 
 function calcHelpPaidInCycle(currency) {
@@ -1431,10 +1512,12 @@ function helpPayText(bHelpedA, aHelpedB, currency) {
 function getDebtInfo(currency) {
   const net = calcSummary().net[currency];
   if (isNegligibleMoney(net, currency)) return null;
+  const exactAmount = Math.abs(net);
+  const displayAmount = roundMoney(exactAmount, currency);
   if (net > 0) {
-    return { payer: 'B', payee: 'A', amount: net };
+    return { payer: 'B', payee: 'A', amount: displayAmount, exactAmount };
   }
-  return { payer: 'A', payee: 'B', amount: Math.abs(net) };
+  return { payer: 'A', payee: 'B', amount: displayAmount, exactAmount };
 }
 
 function pickRepayCurrency() {
@@ -1670,19 +1753,36 @@ function closeDetailModal() {
 function bindDetailTriggers(container) {
   if (!container) return;
   container.querySelectorAll('[data-detail-key]').forEach((el) => {
+    const open = () => openDetailModal(el.dataset.detailKey);
     el.addEventListener('click', (e) => {
       if (e.target.closest('.edit-btn')) return;
-      openDetailModal(el.dataset.detailKey);
+      open();
     });
-    if (el.classList.contains('transaction-item')) {
+    if (el.classList.contains('transaction-item') || el.classList.contains('help-pay-matrix-row')) {
       el.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          openDetailModal(el.dataset.detailKey);
+          open();
         }
       });
     }
   });
+}
+
+function buildExplainScrollHint(count) {
+  if (count <= 5) return '';
+  return `<div class="explain-scroll-hint">共 ${count} 筆 · 向下滑查看更多 ↓</div>`;
+}
+
+function renderExplainStepList(txs, cur, section) {
+  let itemsHtml = '';
+  txs.forEach((tx) => {
+    itemsHtml += renderExplainStepItem(tx);
+  });
+
+  return `<div class="explain-scroll-wrap" style="max-height:${EXPLAIN_SCROLL_MAX}px">
+    <ol class="explain-steps" aria-label="${cur} ${section} 明細">${itemsHtml}</ol>
+  </div>${buildExplainScrollHint(txs.length)}`;
 }
 
 function renderExplainStepItem(tx) {
@@ -1777,11 +1877,8 @@ function renderSettlementExplain() {
     if (expenseContrib.length === 0) {
       html += `<p class="explain-empty">未有要互相還嘅消費</p>`;
     } else {
-      html += `<ol class="explain-steps" aria-label="${cur} 幫畀明細">`;
-      expenseContrib.forEach((tx) => {
-        html += renderExplainStepItem(tx);
-      });
-      html += '</ol>';
+      const matrixHtml = buildHelpPayMatrixHtml(expenseContrib, cur);
+      if (matrixHtml) html += matrixHtml;
     }
     html += `<div class="explain-sum-line explain-sum-sub">
       <div>${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀咗 ${escapeHtml(formatMoney(aHelpedB, cur))} · ${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${escapeHtml(formatMoney(bHelpedA, cur))}</div>
@@ -1791,21 +1888,13 @@ function renderSettlementExplain() {
     if (loanContrib.length) {
       html += `<div class="explain-section">
         <div class="explain-section-title">② 借錢（現金）</div>
-        <ol class="explain-steps" aria-label="${cur} 借錢明細">`;
-      loanContrib.forEach((t) => {
-        html += renderExplainStepItem(t);
-      });
-      html += `</ol></div>`;
+        ${renderExplainStepList(loanContrib, cur, 'loan')}</div>`;
     }
 
     if (repayContrib.length) {
       html += `<div class="explain-section">
         <div class="explain-section-title">${loanContrib.length ? '③' : '②'} 還錢紀錄</div>
-        <ol class="explain-steps" aria-label="${cur} 還錢明細">`;
-      repayContrib.forEach((t) => {
-        html += renderExplainStepItem(t);
-      });
-      html += `</ol></div>`;
+        ${renderExplainStepList(repayContrib, cur, 'repay')}</div>`;
     }
 
     const remainFormula = formatRemainAfterRepayFormula(helpNet, netTotal, cur);
@@ -1939,14 +2028,17 @@ function getFilteredTransactions() {
   return list;
 }
 
-function paginateList(list) {
-  if (listFilters.pageSize === 'all') {
+function paginateList(list, options = {}) {
+  const pageSize = options.pageSize !== undefined ? options.pageSize : listFilters.pageSize;
+  const currentPage = options.currentPage !== undefined ? options.currentPage : listFilters.currentPage;
+
+  if (pageSize === 'all') {
     return { items: list, totalPages: 1, page: 1, total: list.length };
   }
 
-  const size = Number(listFilters.pageSize) || 10;
+  const size = Number(pageSize) || 10;
   const totalPages = Math.max(1, Math.ceil(list.length / size));
-  const page = Math.min(listFilters.currentPage, totalPages);
+  const page = Math.min(Math.max(1, currentPage), totalPages);
   const start = (page - 1) * size;
 
   return {
@@ -2362,17 +2454,105 @@ function setToggleValue(groupId, hiddenId, attr, value) {
   hidden.value = value;
 }
 
+function updateExpenseSplitHint() {
+  const hint = $('#expense-split-hint');
+  if (!hint) return;
+
+  const payer = $('#expense-payer').value;
+  const split = document.querySelector('#split-options input[name="split_mode"]:checked')?.value;
+
+  if (split === 'FOR_B' && payer === 'A') {
+    hint.textContent = `${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀 → ${PERSON_EMOJI.B} 要還全額`;
+  } else if (split === 'FOR_A' && payer === 'B') {
+    hint.textContent = `${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀 → ${PERSON_EMOJI.A} 要還全額`;
+  } else if (split === 'SPLIT_5050') {
+    hint.textContent =
+      payer === 'A'
+        ? `${PERSON_EMOJI.A} 畀，${PERSON_EMOJI.B} 還一半`
+        : `${PERSON_EMOJI.B} 畀，${PERSON_EMOJI.A} 還一半`;
+  } else if (split === 'FOR_A' && payer === 'A') {
+    hint.textContent = `${PERSON_EMOJI.A} 自己嘅，自己畀 → 唔使還`;
+  } else if (split === 'FOR_B' && payer === 'B') {
+    hint.textContent = `${PERSON_EMOJI.B} 自己嘅，自己畀 → 唔使還`;
+  } else {
+    hint.textContent = '';
+  }
+}
+
+function syncHelpPayPresetUi() {
+  const payer = $('#expense-payer').value;
+  const split = document.querySelector('#split-options input[name="split_mode"]:checked')?.value;
+  document.querySelectorAll('.help-pay-preset').forEach((btn) => {
+    const active =
+      (btn.dataset.helpPreset === 'A_TO_B' && payer === 'A' && split === 'FOR_B') ||
+      (btn.dataset.helpPreset === 'B_TO_A' && payer === 'B' && split === 'FOR_A');
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+}
+
+function applyHelpPayPreset(preset) {
+  if (preset === 'A_TO_B') {
+    setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
+    const input = document.querySelector('#split-options input[value="FOR_B"]');
+    if (input) input.checked = true;
+  } else if (preset === 'B_TO_A') {
+    setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'B');
+    const input = document.querySelector('#split-options input[value="FOR_A"]');
+    if (input) input.checked = true;
+  }
+  syncHelpPayPresetUi();
+  updateExpenseSplitHint();
+}
+
+function setupHelpPayPresets() {
+  document.querySelectorAll('.help-pay-preset').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      applyHelpPayPreset(btn.dataset.helpPreset);
+    });
+  });
+
+  $('#payer-toggle')?.querySelectorAll('.toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      syncHelpPayPresetUi();
+      updateExpenseSplitHint();
+    });
+  });
+
+  document.querySelectorAll('#split-options input[name="split_mode"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      syncHelpPayPresetUi();
+      updateExpenseSplitHint();
+    });
+  });
+
+  syncHelpPayPresetUi();
+  updateExpenseSplitHint();
+}
+
 /* ===== Modals ===== */
+const MODAL_BASE_Z = 1000;
+
 function openModal(modal) {
-  modal.classList.remove('hidden');
+  if (!modal) return;
   openModalCount += 1;
+  modal.style.zIndex = String(MODAL_BASE_Z + openModalCount * 10);
+  modal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 }
 
 function closeModal(modal) {
+  if (!modal) return;
   modal.classList.add('hidden');
+  modal.style.zIndex = '';
   openModalCount = Math.max(0, openModalCount - 1);
   if (openModalCount === 0) document.body.style.overflow = '';
+}
+
+function setDeleteConfirmButtonLabel(mode) {
+  const btn = $('#delete-confirm-btn');
+  if (!btn) return;
+  btn.textContent = mode === 'clear-all' ? '確定清空 🗑️' : '確定刪除 🗑️';
 }
 
 function openBudgetModal() {
@@ -2381,12 +2561,11 @@ function openBudgetModal() {
 }
 
 function formatMoneyInputPreset(amount, currency) {
-  const num = Number(amount) || 0;
+  const rounded = roundMoney(amount, currency);
   if (currency === 'HKD') {
-    const rounded = Math.round(num * 100) / 100;
     return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
   }
-  return String(Math.round(num));
+  return String(rounded);
 }
 
 function updateRepayModalView() {
@@ -2445,7 +2624,7 @@ function updateLoanModalView() {
   const submitBtn = $('#loan-submit-btn');
 
   if (contextEl) {
-    contextEl.textContent = `${PERSON_EMOJI[lender]} 借現金畀 ${PERSON_EMOJI[borrower]}（唔計消費，淨係增加欠數）· ${currency}`;
+    contextEl.textContent = `${PERSON_EMOJI[lender]} 借現金畀 ${PERSON_EMOJI[borrower]}（借幾多欠幾多，唔會除二 · 唔計消費）· ${currency}`;
   }
   updateMoneyPrefix($('#loan-amount-prefix'), currency);
   if (submitBtn) submitBtn.disabled = isMutating;
@@ -2519,6 +2698,7 @@ async function deleteTransactionRecord() {
     msg.textContent = `確定要刪除「${title}」？刪除後無法復原。`;
   }
   deleteConfirmMode = 'delete-one';
+  setDeleteConfirmButtonLabel('delete-one');
   openModal(els.deleteConfirmModal);
 }
 
@@ -2531,6 +2711,7 @@ function openClearAllDataConfirm() {
     msg.textContent = `確定清空「${endpoint.label}」全部消費／還錢紀錄？預算會保留，刪除後無法復原。`;
   }
   deleteConfirmMode = 'clear-all';
+  setDeleteConfirmButtonLabel('clear-all');
   openModal(els.deleteConfirmModal);
 }
 
@@ -2593,6 +2774,7 @@ async function confirmClearAllData() {
     showToast(formatApiError(err), 'error');
   } finally {
     deleteConfirmMode = 'delete-one';
+    setDeleteConfirmButtonLabel('delete-one');
     endMutation();
     setLoading(false);
   }
@@ -2741,6 +2923,7 @@ function setupEventListeners() {
   setupToggle('#payer-toggle', '#expense-payer', 'payer', 'A');
   setupToggle('#edit-currency-toggle', '#edit-currency', 'currency', 'JPY');
   setupToggle('#edit-payer-toggle', '#edit-payer', 'payer', 'A');
+  setupHelpPayPresets();
 
   setupListFilters();
   setupCategorySelect('#expense-category', '#expense-custom-category-row', '#expense-custom-category');
@@ -2798,6 +2981,7 @@ function setupEventListeners() {
   $$('[data-close-delete-confirm]').forEach((el) => {
     el.addEventListener('click', () => {
       deleteConfirmMode = 'delete-one';
+      setDeleteConfirmButtonLabel('delete-one');
       closeModal(els.deleteConfirmModal);
     });
   });
@@ -2828,13 +3012,13 @@ function setupEventListeners() {
       return;
     }
 
-    const amount = Number($('#repay-amount').value);
-    if (amount <= 0) {
+    const inputAmount = roundMoney($('#repay-amount').value, currency);
+    if (inputAmount <= 0) {
       endMutation();
       showToast('請填寫有效金額', 'error');
       return;
     }
-    if (amount > debt.amount + 0.01) {
+    if (inputAmount > debt.amount + moneyEpsilon(currency)) {
       endMutation();
       showToast(`還錢金額唔可以超過欠款 ${formatMoney(debt.amount, currency)}`, 'error');
       return;
@@ -2842,12 +3026,14 @@ function setupEventListeners() {
 
     const note = $('#repay-note').value.trim();
     const defaultDesc = `${PERSON_EMOJI[debt.payer]} 還俾 ${PERSON_EMOJI[debt.payee]}`;
+    const repayAmount =
+      inputAmount >= debt.amount - moneyEpsilon(currency) ? debt.exactAmount : inputAmount;
     const tx = {
       date: todayISO(),
       category: REPAY_CATEGORY,
       description: note || defaultDesc,
       currency,
-      amount,
+      amount: repayAmount,
       payer: debt.payer,
       split_mode: 'REPAY',
     };
@@ -2982,6 +3168,8 @@ function setupEventListeners() {
         setToggleValue('#currency-toggle', '#expense-currency', 'currency', 'JPY');
         updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
         setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
+        syncHelpPayPresetUi();
+        updateExpenseSplitHint();
         showToast('已新增並同步至試算表 ✨', 'success');
         recordSyncOk = true;
       }

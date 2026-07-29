@@ -8,7 +8,7 @@
   <title>✈️ 日本旅遊記帳 🇯🇵</title>
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="styles.css?v=20260728bc">
+  <link rel="stylesheet" href="styles.css?v=20260729bt">
 </head>
 <body>
   <header class="app-header">
@@ -130,6 +130,15 @@
           <input type="hidden" id="expense-payer" name="payer" value="A">
         </div>
 
+        <div class="form-row help-pay-preset-row">
+          <label>🤲 幫畀快捷</label>
+          <div class="help-pay-presets">
+            <button type="button" class="help-pay-preset" data-help-preset="A_TO_B" aria-pressed="false">👦🏻 幫 👩🏻 畀</button>
+            <button type="button" class="help-pay-preset" data-help-preset="B_TO_A" aria-pressed="false">👩🏻 幫 👦🏻 畀</button>
+          </div>
+          <p class="form-hint" id="expense-split-hint" aria-live="polite"></p>
+        </div>
+
         <div class="form-row">
           <label>💸 樣嘢點計</label>
           <div class="split-options" id="split-options">
@@ -207,12 +216,12 @@
             <div id="help-pay-jpy" class="help-pay-line" data-currency-panel="jpy">—</div>
             <div id="help-pay-hkd" class="help-pay-line hidden" data-currency-panel="hkd">—</div>
           </div>
-          <div class="settlement-title"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span> 而家邊個欠邊個</div>
+          <div class="settlement-header-row">
+            <div class="settlement-title"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span> 而家邊個欠邊個</div>
+            <button type="button" class="btn btn-loan btn-loan-compact" id="btn-open-loan" aria-label="記錄借錢（現金）">💸 借錢</button>
+          </div>
           <div id="settlement-jpy" class="settlement-line" data-currency-panel="jpy">—</div>
           <div id="settlement-hkd" class="settlement-line hidden" data-currency-panel="hkd">—</div>
-          <div class="settlement-loan-action">
-            <button type="button" class="btn btn-ghost btn-sm btn-block" id="btn-open-loan">💸 記錄借錢（現金）</button>
-          </div>
           <div class="settlement-actions hidden" id="settlement-actions">
             <button type="button" class="btn btn-primary btn-sm btn-block" id="btn-open-repay"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span> 記錄還錢</button>
           </div>
@@ -727,6 +736,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260729bm"></script>
+  <script src="app.js?v=20260729bt"></script>
 </body>
 </html>
