@@ -292,6 +292,20 @@
                 </button>
                 <input type="hidden" id="filter-payer" value="">
               </div>
+
+              <div class="filter-quick-chip-wrap">
+                <button
+                  type="button"
+                  class="filter-quick-chip filter-quick-chip-icon-only"
+                  id="filter-split-chip"
+                  aria-pressed="false"
+                  aria-label="樣嘢點計：全部"
+                >
+                  <span class="filter-quick-chip-icon" id="filter-split-chip-icon"><img class="ui-icon ui-icon-md" src="icons/expense.png" alt="" aria-hidden="true"></span>
+                  <span class="filter-quick-chip-label" id="filter-split-chip-label">樣嘢點計</span>
+                </button>
+                <input type="hidden" id="filter-split" value="">
+              </div>
             </div>
           </div>
 
@@ -314,7 +328,7 @@
 
           <details class="filter-panel" id="filter-panel-advanced">
             <summary>
-              <span class="filter-panel-title">分類 · 排序 · 分帳</span>
+              <span class="filter-panel-title">分類 · 排序</span>
               <span class="filter-active-hint hidden" id="filter-active-hint"></span>
             </summary>
             <div class="filter-panel-body">
@@ -344,35 +358,6 @@
                       id="filter-category-picker"
                       role="radiogroup"
                       aria-labelledby="filter-category-label"
-                    ></div>
-                  </div>
-                  </div>
-                </div>
-                <div class="filter-item filter-item-picker filter-item-icon-field">
-                  <span id="filter-split-label" class="sr-only">樣嘢點計</span>
-                  <div class="form-icon-field">
-                    <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/expense.png" alt=""></span>
-                    <div class="category-picker-wrap form-icon-field-control" data-filter-picker="filter-split">
-                  <input type="hidden" id="filter-split" value="">
-                    <button
-                      type="button"
-                      class="category-picker-trigger"
-                      id="filter-split-trigger"
-                      aria-expanded="false"
-                      aria-controls="filter-split-picker"
-                      aria-labelledby="filter-split-label"
-                    >
-                      <span class="category-picker-trigger-main">
-                        <span class="category-picker-trigger-icon"></span>
-                        <span class="category-picker-trigger-text">全部</span>
-                      </span>
-                      <span class="category-picker-trigger-chevron" aria-hidden="true">▾</span>
-                    </button>
-                    <div
-                      class="category-picker hidden"
-                      id="filter-split-picker"
-                      role="radiogroup"
-                      aria-labelledby="filter-split-label"
                     ></div>
                   </div>
                   </div>
