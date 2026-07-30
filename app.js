@@ -3,7 +3,7 @@ const API_ENDPOINTS = {
   production: {
     label: '正式試算表',
     // 部署 apps-script/Code.production.gs 後，把 URL 貼這裡
-    url: 'https://script.google.com/macros/s/AKfycbyiH66phBQKi7XNfucyK3kc_qmX6bRdh5AlEEiJql2iTi9qYKAjieN5q9T1qyvED5PDnQ/exec',
+    url: 'https://script.google.com/macros/s/AKfycbxC_nylccOpfsamVmhDfoCBUQ-zkHy2HBhTHhsRTnVg1TEUdbhnaCk_pKPJdVl9RzTs4g/exec',
     spreadsheetId: '1zOCbb5gvBsom2p7KVSjFx3-SVyN6G5wQFBvI4cOWWh0',
     sheetGid: '48656539',
     spreadsheetUrl:
@@ -12,7 +12,7 @@ const API_ENDPOINTS = {
   tester: {
     label: '測試試算表',
     // 部署 apps-script/Code.tester.gs 後，把「測試專案」的部署 URL 貼這裡（必須與正式不同）
-    url: 'https://script.google.com/macros/s/AKfycbx5hB2nxPILCM5AMn5V1tIZfU50c0yHUYHeokPjprYk9ITs3ffECHhobh_1RxghiawvqA/exec',
+    url: 'https://script.google.com/macros/s/AKfycbxs43cCa82KcZst-Tf867nLHBqwsTzOuD21rKy23aPEvwQbq_LFQdM9A3mYb66XlIv9SQ/exec',
     spreadsheetId: '1feUcrJ6_2HoJaWio22-rpycrFaLgaFThIcI0LBXaAzU',
     sheetGid: '48656539',
     spreadsheetUrl:
@@ -317,7 +317,7 @@ function startLoadingProgress() {
 }
 
 function isSyncBusy() {
-  return isMutating || loadingCount > 0;
+  return isMutating || loadingCount > 0 || (typeof SyncManager !== 'undefined' && SyncManager.isSyncing());
 }
 
 function isRefreshBlocked() {
@@ -350,12 +350,7 @@ function beginMutation() {
 function endMutation() {
   isMutating = false;
   updateMutationControls();
-  const statusEl = $('#sync-status');
-  if (statusEl?.classList.contains('synced') && lastSyncedAt) {
-    updateSyncStatus('success', lastSyncedAt);
-  } else if (statusEl?.classList.contains('error')) {
-    updateSyncStatus('error');
-  }
+  updateSyncStatusFromQueue();
 }
 
 function beginServerApply() {
@@ -1475,7 +1470,10 @@ function normalizeTransactions(rawList) {
     .filter((tx) => Number(tx.amount) > 0)
     .map((tx) => {
       const enriched = enrichTransaction(tx);
-      enriched._uid = enriched.transaction_id || enriched._uid;
+      enriched._uid = enriched.transaction_id || enriched.client_id || enriched._uid;
+      if (enriched.client_id) {
+        enriched._uid = enriched._uid || enriched.client_id;
+      }
       return enriched;
     });
 }
@@ -1551,8 +1549,31 @@ function updateSyncStatus(state, syncedAt) {
 
   const endpoint = getActiveEndpoint();
   const sheetHint = apiEndpointKey === 'tester' ? ' · 測試' : '';
+  const pending = typeof OfflineQueue !== 'undefined' ? OfflineQueue.size() : 0;
 
   if (refreshBtn) refreshBtn.disabled = isRefreshBlocked();
+
+  if (state === 'offline') {
+    el.textContent = `📴 已離線（${pending} 筆待同步）${sheetHint}`;
+    el.className = 'sync-status offline';
+    el.disabled = false;
+    return;
+  }
+
+  if (state === 'pending' || (state === 'syncing' && pending > 0)) {
+    el.textContent = `☁️ 同步中（${pending} 筆）${sheetHint}`;
+    el.className = 'sync-status syncing';
+    el.disabled = true;
+    return;
+  }
+
+  if (state === 'retry') {
+    el.textContent = `⚠️ 同步失敗，稍後自動重試${sheetHint}`;
+    el.className = 'sync-status error';
+    el.disabled = false;
+    if (refreshBtn) refreshBtn.disabled = isRefreshBlocked();
+    return;
+  }
 
   if (state === 'syncing') {
     el.textContent = `☁️ 同步中…${sheetHint}`;
@@ -1575,7 +1596,7 @@ function updateSyncStatus(state, syncedAt) {
     minute: '2-digit',
     second: '2-digit',
   });
-  el.textContent = `☁️ 已同步 ${time}${sheetHint}`;
+  el.textContent = `✅ 已同步 ${time}${sheetHint}`;
   el.className = 'sync-status synced';
   el.disabled = false;
   if (refreshBtn) refreshBtn.disabled = isRefreshBlocked();
@@ -1584,9 +1605,44 @@ function updateSyncStatus(state, syncedAt) {
     : endpoint.label;
 }
 
+function updateSyncStatusFromQueue(mode) {
+  const pending = typeof OfflineQueue !== 'undefined' ? OfflineQueue.size() : 0;
+  const online = typeof SyncManager !== 'undefined' ? SyncManager.isNetworkOnline() : navigator.onLine;
+
+  if (!online) {
+    updateSyncStatus('offline');
+    return;
+  }
+  if (mode === 'retry') {
+    updateSyncStatus('retry');
+    return;
+  }
+  if (mode === 'syncing' && pending > 0) {
+    updateSyncStatus('pending');
+    return;
+  }
+  if (pending > 0) {
+    updateSyncStatus('pending');
+    return;
+  }
+  if (lastSyncedAt) {
+    updateSyncStatus('success', lastSyncedAt);
+  } else {
+    updateSyncStatus('syncing');
+  }
+}
+
 async function manualSync() {
   if (isRefreshBlocked()) return;
   try {
+    if (typeof SyncManager !== 'undefined') {
+      await SyncManager.flushQueue();
+    }
+    if (typeof OfflineQueue !== 'undefined' && OfflineQueue.size() > 0) {
+      updateSyncStatusFromQueue();
+      showToast('部分變更尚未同步，稍後會自動重試', 'info');
+      return;
+    }
     await fetchAllData({ showSuccessToast: true });
   } catch (err) {
     showToast(formatApiError(err), 'error');
@@ -1702,6 +1758,12 @@ async function switchApiEndpoint(targetKey) {
   const endpoint = getActiveEndpoint();
   showToast(`已切換至${endpoint.label}`, 'success');
 
+  if (typeof SyncManager !== 'undefined') {
+    SyncManager.reinitEndpoint(apiEndpointKey);
+  } else if (typeof OfflineQueue !== 'undefined') {
+    OfflineQueue.init(apiEndpointKey);
+  }
+
   // Reset local view before loading the selected spreadsheet.
   transactions = [];
   budgets = structuredClone(DEFAULT_BUDGETS);
@@ -1713,8 +1775,14 @@ async function switchApiEndpoint(targetKey) {
   try {
     await fetchAllData();
     startAutoSync();
+    SyncManager.scheduleSync();
   } catch (err) {
-    showToast(formatApiError(err), 'error');
+    if (OfflineQueue.size() > 0) {
+      reapplyPendingFromQueue();
+      updateSyncStatusFromQueue();
+    } else {
+      showToast(formatApiError(err), 'error');
+    }
   }
 }
 
@@ -1879,6 +1947,165 @@ function applyServerData(data, applySeq) {
   return true;
 }
 
+function applyLocalCreate(tx) {
+  const cid = tx.client_id || tx._uid;
+  transactions = transactions.filter((t) => t.client_id !== cid && t._uid !== cid);
+  const enriched = enrichTransaction({
+    ...tx,
+    _uid: cid,
+    client_id: cid,
+  });
+  transactions = normalizeTransactions([...transactions, enriched]);
+  summary = buildLocalSummary();
+  renderAll();
+}
+
+function applyLocalEdit(key, updated) {
+  transactions = transactions.map((t) => {
+    if (getTxKey(t) !== key && t.client_id !== key) return t;
+    return enrichTransaction({
+      ...t,
+      ...updated,
+      transaction_id: updated.transaction_id || t.transaction_id,
+      client_id: t.client_id || t._uid,
+      _uid: t._uid || t.client_id,
+    });
+  });
+  summary = buildLocalSummary();
+  renderAll();
+}
+
+function applyLocalDelete(key) {
+  transactions = transactions.filter(
+    (t) => getTxKey(t) !== key && t.client_id !== key
+  );
+  summary = buildLocalSummary();
+  renderAll();
+}
+
+function applyLocalBudget(newBudgets) {
+  budgets = structuredClone(newBudgets);
+  summary = buildLocalSummary();
+  renderAll();
+}
+
+function applyLocalClearTransactions() {
+  transactions = [];
+  summary = buildLocalSummary();
+  renderAll();
+}
+
+function reapplyPendingFromQueue() {
+  for (const op of OfflineQueue.getAll()) {
+    switch (op.type) {
+      case 'create':
+        applyLocalCreate({
+          ...op.payload,
+          client_id: op.clientId,
+          _uid: op.clientId,
+        });
+        break;
+      case 'edit': {
+        const key = op.payload.transaction_id || op.payload.clientId || op.clientId;
+        applyLocalEdit(key, op.payload.tx);
+        break;
+      }
+      case 'delete': {
+        const key = op.payload.transaction_id || op.payload.clientId || op.clientId;
+        applyLocalDelete(key);
+        break;
+      }
+      case 'updateBudget':
+        applyLocalBudget(op.payload.budgets);
+        break;
+      case 'clearTransactions':
+        applyLocalClearTransactions();
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+function applyServerDataWithQueue(data, applySeq) {
+  const hadPending = OfflineQueue.size() > 0;
+  const applied = applyServerData(data, applySeq);
+  if (applied && hadPending) {
+    reapplyPendingFromQueue();
+  }
+  return applied;
+}
+
+function enqueueCreate(tx) {
+  const clientId = tx.client_id || OfflineQueue.generateId();
+  const payload = {
+    ...tx,
+    client_id: clientId,
+    _uid: clientId,
+    time: tx.time || nowLocalTimeHM(),
+  };
+  OfflineQueue.enqueue({
+    type: 'create',
+    clientId,
+    payload,
+  });
+  applyLocalCreate(payload);
+  return clientId;
+}
+
+function enqueueEdit(existing, updated) {
+  const clientId = existing.client_id || existing._uid || '';
+  OfflineQueue.enqueue({
+    type: 'edit',
+    clientId: clientId || OfflineQueue.generateId(),
+    payload: {
+      transaction_id: existing.transaction_id || '',
+      clientId,
+      tx: {
+        ...updated,
+        location: updated.location ?? getLocationText(existing),
+      },
+    },
+  });
+  applyLocalEdit(getTxKey(existing), {
+    ...updated,
+    transaction_id: existing.transaction_id || '',
+    client_id: clientId,
+    _uid: clientId || existing._uid,
+  });
+}
+
+function enqueueDelete(existing) {
+  const clientId = existing.client_id || existing._uid || '';
+  OfflineQueue.enqueue({
+    type: 'delete',
+    clientId: clientId || OfflineQueue.generateId(),
+    payload: {
+      transaction_id: existing.transaction_id || '',
+      clientId,
+    },
+  });
+  applyLocalDelete(getTxKey(existing));
+}
+
+function enqueueBudgetUpdate(newBudgets) {
+  OfflineQueue.enqueue({
+    type: 'updateBudget',
+    clientId: OfflineQueue.generateId(),
+    payload: { budgets: structuredClone(newBudgets) },
+  });
+  applyLocalBudget(newBudgets);
+}
+
+function enqueueClearAll() {
+  OfflineQueue.enqueue({
+    type: 'clearTransactions',
+    clientId: OfflineQueue.generateId(),
+    payload: {},
+  });
+  applyLocalClearTransactions();
+}
+
 async function fetchAllData(options = {}) {
   const { silent = false, showSuccessToast = false } = options;
   const applySeq = beginServerApply();
@@ -1887,13 +2114,23 @@ async function fetchAllData(options = {}) {
 
   try {
     const data = await apiRequest({ action: 'fetch' });
-    if (applyServerData(data, applySeq)) {
+    const hasPending = typeof OfflineQueue !== 'undefined' && OfflineQueue.size() > 0;
+    if (hasPending) {
+      if (applyServerDataWithQueue(data, applySeq)) {
+        updateSyncStatusFromQueue();
+        if (showSuccessToast) showToast('已刷新資料 🔄', 'success');
+      }
+    } else if (applyServerData(data, applySeq)) {
       updateSyncStatus('success', data.synced_at);
       if (showSuccessToast) showToast('已刷新資料 🔄', 'success');
     }
     return data;
   } catch (err) {
-    updateSyncStatus('error');
+    if (typeof OfflineQueue !== 'undefined' && OfflineQueue.size() > 0) {
+      updateSyncStatusFromQueue();
+    } else {
+      updateSyncStatus('error');
+    }
     throw err;
   } finally {
     if (!silent) setLoading(false);
@@ -1904,7 +2141,7 @@ async function syncAddTransaction(tx) {
   return apiRequest({
     action: 'addTransaction',
     date: tx.date,
-    time: nowLocalTimeHM(),
+    time: tx.time || nowLocalTimeHM(),
     category: tx.category,
     description: tx.description,
     location: tx.location || '',
@@ -1912,13 +2149,15 @@ async function syncAddTransaction(tx) {
     amount: tx.amount,
     payer: tx.payer,
     split_mode: tx.split_mode,
+    client_id: tx.client_id || '',
   });
 }
 
 async function syncEditTransaction(tx) {
   return apiRequest({
     action: 'editTransaction',
-    transaction_id: tx.transaction_id,
+    transaction_id: tx.transaction_id || '',
+    client_id: tx.client_id || '',
     date: tx.date,
     category: tx.category,
     description: tx.description,
@@ -1930,10 +2169,13 @@ async function syncEditTransaction(tx) {
   });
 }
 
-async function syncDeleteTransaction(transactionId) {
+async function syncDeleteTransaction(ids) {
+  const transactionId = typeof ids === 'string' ? ids : ids.transaction_id;
+  const clientId = typeof ids === 'object' ? ids.client_id : '';
   return apiRequest({
     action: 'deleteTransaction',
-    transaction_id: transactionId,
+    transaction_id: transactionId || '',
+    client_id: clientId || '',
   });
 }
 
@@ -1957,7 +2199,11 @@ async function syncClearAllTransactions() {
 function startAutoSync() {
   if (syncTimer) clearInterval(syncTimer);
   syncTimer = setInterval(async () => {
-    if (isSyncBusy() || isModalOpen()) return;
+    if (isMutating || isModalOpen()) return;
+    if (typeof OfflineQueue !== 'undefined' && OfflineQueue.size() > 0) {
+      SyncManager.scheduleSync();
+      return;
+    }
     try {
       await fetchAllData({ silent: true });
     } catch (_) {}
@@ -3338,15 +3584,11 @@ function openEditModal(key) {
 }
 
 async function deleteTransactionRecord() {
-  const transactionId = $('#edit-transaction-id').value;
   const key = $('#edit-transaction-key').value;
-  if (!transactionId) {
-    showToast('此紀錄尚未有試算表 ID，請先刷新', 'error');
-    return;
-  }
-
   const tx = findTransactionByKey(key);
-  const title = tx ? getTransactionTitle(tx) : '此紀錄';
+  if (!tx) return;
+
+  const title = getTransactionTitle(tx);
   const msg = $('#delete-confirm-message');
   const titleEl = $('#delete-confirm-title');
   if (titleEl) titleEl.innerHTML = `${uiIconHtml('delete', 'title')} 確認刪除`;
@@ -3379,34 +3621,22 @@ async function confirmDeleteTransaction() {
 
   if (!beginMutation()) return;
 
-  const transactionId = $('#edit-transaction-id').value;
-  if (!transactionId) {
+  const key = $('#edit-transaction-key').value;
+  const tx = findTransactionByKey(key);
+  if (!tx) {
     endMutation();
-    showToast('此紀錄尚未有試算表 ID，請先刷新', 'error');
     closeModal(els.deleteConfirmModal);
     return;
   }
 
   closeModal(els.deleteConfirmModal);
-  setLoading(true);
-  const applySeq = beginServerApply();
-  let recordSyncOk = false;
-  try {
-    const data = await syncDeleteTransaction(transactionId);
-    if (applyServerData(data, applySeq)) {
-      updateSyncStatus('success', data.synced_at);
-      closeModal(els.editModal);
-      dismissDetailModal();
-      showToast(`${uiIconHtml('delete', 'btn')} 紀錄已刪除`, 'success');
-      recordSyncOk = true;
-    }
-  } catch (err) {
-    showToast(formatApiError(err), 'error');
-  } finally {
-    endMutation();
-    setLoading(false);
-    if (recordSyncOk) onRecordSyncComplete();
-  }
+  enqueueDelete(tx);
+  endMutation();
+  SyncManager.scheduleSync();
+  closeModal(els.editModal);
+  dismissDetailModal();
+  showToast(`${uiIconHtml('delete', 'btn')} 紀錄已刪除`, 'success');
+  onRecordSyncComplete();
 }
 
 async function confirmClearAllData() {
@@ -3414,26 +3644,16 @@ async function confirmClearAllData() {
 
   closeModal(els.deleteConfirmModal);
   closeModal($('#sheet-switcher-modal'));
-  setLoading(true);
-  const applySeq = beginServerApply();
-  try {
-    const data = await syncClearAllTransactions();
-    if (applyServerData(data, applySeq)) {
-      updateSyncStatus('success', data.synced_at);
-      listFilters.currentPage = 1;
-      dismissDetailModal();
-      closePersonSpendModal();
-      closeModal(els.editModal);
-      showToast(`${uiIconHtml('delete', 'btn')} 已清空「${getActiveEndpoint().label}」全部紀錄`, 'success');
-    }
-  } catch (err) {
-    showToast(formatApiError(err), 'error');
-  } finally {
-    deleteConfirmMode = 'delete-one';
-    setDeleteConfirmButtonLabel('delete-one');
-    endMutation();
-    setLoading(false);
-  }
+  enqueueClearAll();
+  listFilters.currentPage = 1;
+  dismissDetailModal();
+  closePersonSpendModal();
+  closeModal(els.editModal);
+  endMutation();
+  SyncManager.scheduleSync();
+  showToast(`${uiIconHtml('delete', 'btn')} 已清空「${getActiveEndpoint().label}」全部紀錄`, 'success');
+  deleteConfirmMode = 'delete-one';
+  setDeleteConfirmButtonLabel('delete-one');
 }
 
 function setupListFilters() {
@@ -3675,27 +3895,18 @@ function setupEventListeners() {
       amount: repayAmount,
       payer: debt.payer,
       split_mode: 'REPAY',
+      time: nowLocalTimeHM(),
     };
 
     closeModal(els.repayModal);
-    setLoading(true);
-    const applySeq = beginServerApply();
-    let recordSyncOk = false;
     try {
       tx.location = await captureCurrentLocation();
-      const data = await syncAddTransaction(tx);
-      if (applyServerData(data, applySeq)) {
-        updateSyncStatus('success', data.synced_at);
-        showToast(`${uiIconHtml('confirm', 'btn')} 還錢紀錄已同步`, 'success');
-        recordSyncOk = true;
-      }
-    } catch (err) {
-      showToast(formatApiError(err), 'error');
-    } finally {
-      endMutation();
-      setLoading(false);
-      if (recordSyncOk) onRecordSyncComplete();
-    }
+    } catch (_) {}
+    enqueueCreate(tx);
+    endMutation();
+    SyncManager.scheduleSync();
+    showToast(`${uiIconHtml('confirm', 'btn')} 還錢紀錄已加入`, 'success');
+    onRecordSyncComplete();
   });
 
   setupToggle('#loan-currency-toggle', '#loan-currency', 'currency', 'JPY');
@@ -3731,27 +3942,18 @@ function setupEventListeners() {
       amount,
       payer: lender,
       split_mode: 'LOAN',
+      time: nowLocalTimeHM(),
     };
 
     closeModal(els.loanModal);
-    setLoading(true);
-    const applySeq = beginServerApply();
-    let recordSyncOk = false;
     try {
       tx.location = await captureCurrentLocation();
-      const data = await syncAddTransaction(tx);
-      if (applyServerData(data, applySeq)) {
-        updateSyncStatus('success', data.synced_at);
-        showToast(`${uiIconHtml('expense', 'btn')} 借錢紀錄已同步`, 'success');
-        recordSyncOk = true;
-      }
-    } catch (err) {
-      showToast(formatApiError(err), 'error');
-    } finally {
-      endMutation();
-      setLoading(false);
-      if (recordSyncOk) onRecordSyncComplete();
-    }
+    } catch (_) {}
+    enqueueCreate(tx);
+    endMutation();
+    SyncManager.scheduleSync();
+    showToast(`${uiIconHtml('expense', 'btn')} 借錢紀錄已加入`, 'success');
+    onRecordSyncComplete();
   });
 
   $('#detail-edit-btn').addEventListener('click', () => {
@@ -3783,6 +3985,7 @@ function setupEventListeners() {
       amount: Number(form.get('amount')),
       payer: $('#expense-payer').value,
       split_mode: form.get('split_mode'),
+      time: nowLocalTimeHM(),
     };
 
     if (tx.amount <= 0) {
@@ -3791,38 +3994,28 @@ function setupEventListeners() {
       return;
     }
 
-    setLoading(true);
-    const applySeq = beginServerApply();
-    let recordSyncOk = false;
     try {
       tx.location = await captureCurrentLocation();
-      const data = await syncAddTransaction(tx);
-      if (applyServerData(data, applySeq)) {
-        updateSyncStatus('success', data.synced_at);
-        els.expenseForm.reset();
-        els.expenseDate.value = todayISO();
-        $('#expense-category').value = '餐飲-午餐';
-        syncCategoryPicker($('#expense-category-picker'), '餐飲-午餐');
-        setCategoryPickerOpen(getCategoryPickerWrap('expense-category'), false);
-        $('#expense-custom-category-row').classList.add('hidden');
-        $('#expense-custom-category').value = '';
-        setExpenseEssentials('expense', {
-          currency: 'JPY',
-          payer: 'A',
-          split: 'SPLIT_5050',
-        });
-        updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
-        updateExpenseSplitHint();
-        showToast(`${uiIconHtml('success', 'btn')} 已新增並同步至試算表`, 'success');
-        recordSyncOk = true;
-      }
-    } catch (err) {
-      showToast(formatApiError(err), 'error');
-    } finally {
-      endMutation();
-      setLoading(false);
-      if (recordSyncOk) onRecordSyncComplete();
-    }
+    } catch (_) {}
+    enqueueCreate(tx);
+    endMutation();
+    SyncManager.scheduleSync();
+    els.expenseForm.reset();
+    els.expenseDate.value = todayISO();
+    $('#expense-category').value = '餐飲-午餐';
+    syncCategoryPicker($('#expense-category-picker'), '餐飲-午餐');
+    setCategoryPickerOpen(getCategoryPickerWrap('expense-category'), false);
+    $('#expense-custom-category-row').classList.add('hidden');
+    $('#expense-custom-category').value = '';
+    setExpenseEssentials('expense', {
+      currency: 'JPY',
+      payer: 'A',
+      split: 'SPLIT_5050',
+    });
+    updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
+    updateExpenseSplitHint();
+    showToast(`${uiIconHtml('success', 'btn')} 已新增`, 'success');
+    onRecordSyncComplete();
   });
 
   els.budgetForm.addEventListener('submit', async (e) => {
@@ -3840,21 +4033,11 @@ function setupEventListeners() {
       },
     };
 
-    setLoading(true);
-    const applySeq = beginServerApply();
-    try {
-      const data = await syncBudgets(newBudgets);
-      if (applyServerData(data, applySeq)) {
-        updateSyncStatus('success', data.synced_at);
-        closeModal(els.budgetModal);
-        showToast(`${uiIconHtml('save', 'btn')} 預算已同步至試算表`, 'success');
-      }
-    } catch (err) {
-      showToast(formatApiError(err), 'error');
-    } finally {
-      endMutation();
-      setLoading(false);
-    }
+    enqueueBudgetUpdate(newBudgets);
+    endMutation();
+    SyncManager.scheduleSync();
+    closeModal(els.budgetModal);
+    showToast(`${uiIconHtml('save', 'btn')} 預算已更新`, 'success');
   });
 
   els.editForm.addEventListener('submit', async (e) => {
@@ -3879,11 +4062,6 @@ function setupEventListeners() {
 
     const existing = transactions[idx];
     const transactionId = $('#edit-transaction-id').value || existing.transaction_id || '';
-    if (!transactionId) {
-      endMutation();
-      showToast('此紀錄尚未有試算表 ID，請先刷新', 'error');
-      return;
-    }
 
     const amount = Number($('#edit-amount').value);
     if (amount <= 0) {
@@ -3904,25 +4082,13 @@ function setupEventListeners() {
       split_mode: resolveEditSplitMode(existing),
     };
 
-    setLoading(true);
-    const applySeq = beginServerApply();
-    let recordSyncOk = false;
-    try {
-      const data = await syncEditTransaction(updated);
-      if (applyServerData(data, applySeq)) {
-        updateSyncStatus('success', data.synced_at);
-        closeModal(els.editModal);
-        dismissDetailModal();
-        showToast(`${uiIconHtml('save', 'btn')} 已更新並同步至試算表`, 'success');
-        recordSyncOk = true;
-      }
-    } catch (err) {
-      showToast(formatApiError(err), 'error');
-    } finally {
-      endMutation();
-      setLoading(false);
-      if (recordSyncOk) onRecordSyncComplete();
-    }
+    enqueueEdit(existing, updated);
+    endMutation();
+    SyncManager.scheduleSync();
+    closeModal(els.editModal);
+    dismissDetailModal();
+    showToast(`${uiIconHtml('save', 'btn')} 已更新`, 'success');
+    onRecordSyncComplete();
   });
 }
 
@@ -4060,13 +4226,35 @@ async function init() {
   setupThemeToggle();
   setupIconTapFeedback();
 
+  OfflineQueue.init(apiEndpointKey);
+  SyncManager.init({
+    syncIntervalMs: SYNC_INTERVAL_MS,
+    beginServerApply,
+    applyServerDataWithQueue,
+    syncAddTransaction,
+    syncEditTransaction,
+    syncDeleteTransaction,
+    syncBudgets,
+    syncClearAllTransactions,
+    updateSyncStatusFromQueue,
+    isSyncBlocked: () => isMutating || isModalOpen(),
+  });
+
   try {
     await fetchAllData();
     startAutoSync();
+    SyncManager.scheduleSync();
   } catch (err) {
     console.error('fetchAllData failed:', err);
-    showToast(formatApiError(err), 'error');
+    if (OfflineQueue.size() > 0) {
+      reapplyPendingFromQueue();
+      updateSyncStatusFromQueue();
+    } else {
+      showToast(formatApiError(err), 'error');
+    }
     renderAll();
+    startAutoSync();
+    SyncManager.scheduleSync();
   }
   updateMutationControls();
 }

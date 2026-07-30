@@ -186,6 +186,11 @@ html.theme-cyberpunk .app-container {
   opacity: 0.75;
 }
 
+.sync-status.offline {
+  color: var(--color-muted, #6b7280);
+  border-color: rgba(107, 114, 128, 0.35);
+}
+
 .sync-status.synced {
   opacity: 0.9;
 }

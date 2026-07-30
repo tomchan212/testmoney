@@ -23,7 +23,7 @@ const SHEET_SUMMARY = 'Summary';
 const TX_HEADERS = [
   'transaction_id', 'date', 'time', 'category', 'description', 'currency',
   'amount', 'payer', 'split_mode', 'a_share', 'b_share', 'net_b_owes_a',
-  'location',
+  'location', 'client_id',
 ];
 
 function doGet(e) {
@@ -138,6 +138,7 @@ function parseTransactionRow_(row, map, displayRow) {
       b_share: txNum_(txCellRaw_(row, map, 'b_share')),
       net_b_owes_a: txNum_(txCellRaw_(row, map, 'net_b_owes_a')),
       location: txLocation_(row, map),
+      client_id: txCell_(row, map, 'client_id'),
     };
   }
 
@@ -155,6 +156,7 @@ function parseTransactionRow_(row, map, displayRow) {
     b_share: Number(row[9]) || 0,
     net_b_owes_a: Number(row[10]) || 0,
     location: String(row[12] || '').trim(),
+    client_id: String(row[13] || '').trim(),
   };
 }
 
@@ -287,6 +289,14 @@ function addTransaction_(params) {
   const sheet = getSheet_(SHEET_TX);
   ensureHeaders_(sheet, TX_HEADERS);
 
+  const clientId = String(params.client_id || '').trim();
+  if (clientId) {
+    const existingRow = findTransactionByClientId_(sheet, clientId);
+    if (existingRow > 0) {
+      return getAllData_();
+    }
+  }
+
   const tx = normalizeTxInput_(params);
   const shares = computeShares_(tx.amount, tx.payer, tx.split_mode);
   const id = generateTransactionId_(sheet, tx.date);
@@ -307,6 +317,7 @@ function addTransaction_(params) {
     shares.b_share,
     shares.net_b_owes_a,
     tx.location,
+    clientId,
   ]);
   writeTimeCell_(sheet, sheet.getLastRow(), getHeaderIndexMap_(sheet), recordTime);
 
@@ -314,11 +325,24 @@ function addTransaction_(params) {
 }
 
 function editTransaction_(params) {
-  const id = String(params.transaction_id || '').trim();
-  if (!id) throw new Error('缺少 transaction_id');
-
   const sheet = getSheet_(SHEET_TX);
-  const rowIndex = findTransactionRow_(sheet, id);
+  ensureHeaders_(sheet, TX_HEADERS);
+  const map = getHeaderIndexMap_(sheet);
+
+  let id = String(params.transaction_id || '').trim();
+  let rowIndex = id ? findTransactionRow_(sheet, id) : -1;
+
+  if (rowIndex < 0) {
+    const clientId = String(params.client_id || '').trim();
+    if (clientId) {
+      rowIndex = findTransactionByClientId_(sheet, clientId);
+      if (rowIndex > 0) {
+        id = String(sheet.getRange(rowIndex, 1).getValue() || '').trim();
+      }
+    }
+  }
+
+  if (!id) throw new Error('缺少 transaction_id');
   if (rowIndex < 0) throw new Error('找不到該筆紀錄：' + id);
 
   const tx = normalizeTxInput_(params);
@@ -327,6 +351,8 @@ function editTransaction_(params) {
   const recordTime = params.time
     ? resolveRecordTime_(params, existingRow[2] || new Date())
     : (existingRow[2] ? formatTime_(existingRow[2]) : formatTime_(new Date()));
+  const existingClientId = txCell_(existingRow, map, 'client_id')
+    || String(params.client_id || '').trim();
 
   sheet.getRange(rowIndex, 1, 1, TX_HEADERS.length).setValues([[
     id,
@@ -342,8 +368,9 @@ function editTransaction_(params) {
     shares.b_share,
     shares.net_b_owes_a,
     tx.location,
+    existingClientId,
   ]]);
-  writeTimeCell_(sheet, rowIndex, getHeaderIndexMap_(sheet), recordTime);
+  writeTimeCell_(sheet, rowIndex, map, recordTime);
 
   return getAllData_();
 }
@@ -381,12 +408,23 @@ function updateBudget_(params) {
 }
 
 function deleteTransaction_(params) {
-  const id = String(params.transaction_id || '').trim();
-  if (!id) throw new Error('缺少 transaction_id');
-
   const sheet = getSheet_(SHEET_TX);
-  const rowIndex = findTransactionRow_(sheet, id);
-  if (rowIndex < 0) throw new Error('找不到該筆紀錄：' + id);
+  ensureHeaders_(sheet, TX_HEADERS);
+
+  const id = String(params.transaction_id || '').trim();
+  let rowIndex = id ? findTransactionRow_(sheet, id) : -1;
+
+  if (rowIndex < 0) {
+    const clientId = String(params.client_id || '').trim();
+    if (clientId) {
+      rowIndex = findTransactionByClientId_(sheet, clientId);
+    }
+  }
+
+  if (rowIndex < 0) {
+    const lookup = id || String(params.client_id || '').trim();
+    throw new Error('找不到該筆紀錄：' + lookup);
+  }
 
   sheet.deleteRow(rowIndex);
   return getAllData_();
@@ -464,6 +502,20 @@ function findTransactionRow_(sheet, transactionId) {
   const ids = sheet.getRange('A2:A' + lastRow).getValues();
   for (let i = 0; i < ids.length; i++) {
     if (String(ids[i][0]).trim() === transactionId) return i + 2;
+  }
+  return -1;
+}
+
+function findTransactionByClientId_(sheet, clientId) {
+  if (!clientId) return -1;
+  const map = getHeaderIndexMap_(sheet);
+  const col = map.client_id;
+  if (col === undefined) return -1;
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  const values = sheet.getRange(2, col + 1, lastRow, col + 1).getValues();
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]).trim() === clientId) return i + 2;
   }
   return -1;
 }
