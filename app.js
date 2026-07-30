@@ -2536,6 +2536,17 @@ function buildWhyCalcItemsHtml(tx) {
   return html;
 }
 
+/** 總覽「邊個幫邊個畀」：未有互相幫畀時嘅空狀態。 */
+function helpPayEmptyHtml(currency) {
+  return `<div class="help-pay-stack help-pay-empty-state">
+    <div class="help-pay-row help-pay-empty">${personImg('A', 'inline')} 同 ${personImg('B', 'inline')} 暫時未有互相幫畀</div>
+    <div class="help-pay-row help-pay-net help-pay-net-settled">
+      <span class="help-pay-net-label">對消後（未計還錢）</span>
+      <span class="help-pay-net-result">大家唔欠 ${moneyFigHtml(0, currency)}</span>
+    </div>
+  </div>`;
+}
+
 /** 總覽「邊個幫邊個畀」：每行一條，避免金額換行。 */
 function helpPayText(bHelpedA, aHelpedB, currency) {
   const rows = [];
@@ -3019,15 +3030,10 @@ function renderSummary() {
 
     const helpEl = $(`#help-pay-${lower}`);
     if (helpEl) {
-      if (settled) {
-        helpEl.innerHTML = '';
-        helpEl.classList.add('is-settled-empty');
-      } else {
-        const { bHelpedA, aHelpedB } = calcHelpPaidInCycle(cur);
-        const html = helpPayText(bHelpedA, aHelpedB, cur);
-        helpEl.innerHTML = html ? `${badge} ${html}` : '';
-        helpEl.classList.toggle('is-settled-empty', !html);
-      }
+      const { bHelpedA, aHelpedB } = calcHelpPaidInCycle(cur);
+      const html = !settled ? helpPayText(bHelpedA, aHelpedB, cur) : '';
+      helpEl.innerHTML = `${badge} ${html || helpPayEmptyHtml(cur)}`;
+      helpEl.classList.toggle('is-settled-empty', !html);
     }
   });
 
@@ -3038,12 +3044,11 @@ function renderSummary() {
 function updateSettlementChromeVisibility(net = calcSummary().net) {
   const jpyDebt = !isNegligibleMoney(net.JPY, 'JPY');
   const hkdDebt = !isNegligibleMoney(net.HKD, 'HKD');
-  const showHelp =
-    currencyView === 'jpy' ? jpyDebt : currencyView === 'hkd' ? hkdDebt : jpyDebt || hkdDebt;
   const showRepay =
     currencyView === 'jpy' ? jpyDebt : currencyView === 'hkd' ? hkdDebt : jpyDebt || hkdDebt;
 
-  $('#help-pay-block')?.classList.toggle('hidden', !showHelp);
+  // 即使未有互相幫畀，都顯示空狀態，唔好成個 block 收埋
+  $('#help-pay-block')?.classList.remove('hidden');
   $('#settlement-actions')?.classList.toggle('hidden', !showRepay);
 }
 
