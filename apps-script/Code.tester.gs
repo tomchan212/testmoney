@@ -6,11 +6,14 @@
  * https://docs.google.com/spreadsheets/d/1feUcrJ6_2HoJaWio22-rpycrFaLgaFThIcI0LBXaAzU/edit?gid=48656539#gid=48656539
  *
  * 部署步驟：
- * 1. 另開一個「測試」專用 Apps Script 專案，貼上此檔案（不要跟正式共用同一個專案）
+ * 1. 在「測試」專用 Apps Script 專案貼上此檔案（不要跟正式共用同一個專案）
  * 2. 確認 SPREADSHEET_ID 正確
- * 3. 部署 → 新增部署 → 網頁應用程式
+ * 3. 部署 → 新增部署（或管理部署 → 新版本）→ 網頁應用程式
  * 4. 執行身分：我；存取權：任何人
- * 5. 複製部署 URL，更新 app.js → API_ENDPOINTS.tester.url
+ * 5. 若為全新部署，複製 URL 更新 app.js → API_ENDPOINTS.tester.url
+ *    若只更新程式碼，用「管理部署 → 新版本」即可，URL 唔使改
+ *
+ * 注意：除此檔案頂部 SOURCE / SPREADSHEET_ID 外，其餘程式邏輯必須與 Code.production.gs 完全一致。
  */
 
 const SPREADSHEET_ID = '1feUcrJ6_2HoJaWio22-rpycrFaLgaFThIcI0LBXaAzU';

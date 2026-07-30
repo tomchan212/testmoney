@@ -1438,6 +1438,22 @@ button.currency-label.badge-all.active {
   color: var(--text-muted);
 }
 
+.summary-block-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.help-pay-empty-state .help-pay-row {
+  white-space: normal;
+  flex-wrap: wrap;
+}
+
+.help-pay-line.is-settled-empty {
+  opacity: 0.95;
+}
+
 .settlement-breakdown {
   margin-top: 0.3rem;
   font-size: 0.72rem;

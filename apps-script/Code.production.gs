@@ -12,6 +12,8 @@
  * 4. 執行身分：我；存取權：任何人
  * 5. 若為全新部署，複製 URL 更新 app.js → API_ENDPOINTS.production.url
  *    若只更新程式碼，用「管理部署 → 新版本」即可，URL 唔使改
+ *
+ * 注意：除此檔案頂部 SOURCE / SPREADSHEET_ID 外，其餘程式邏輯必須與 Code.tester.gs 完全一致。
  */
 
 const SPREADSHEET_ID = '1zOCbb5gvBsom2p7KVSjFx3-SVyN6G5wQFBvI4cOWWh0';
