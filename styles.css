@@ -3971,6 +3971,12 @@ button.currency-label.badge-all.active {
   padding: 1.25rem;
   box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s ease;
+  touch-action: pan-y;
+  will-change: transform;
+}
+
+.modal-content.is-swipe-closing {
+  animation: none;
 }
 
 @keyframes slideUp {
@@ -4471,48 +4477,6 @@ button.currency-label.badge-all.active {
   font-size: 0.78rem;
   color: var(--text-muted);
   margin-bottom: 0.625rem;
-}
-
-/* ===== Edge swipe back hint ===== */
-.edge-swipe-back-hint {
-  position: fixed;
-  top: 50%;
-  left: 0;
-  z-index: 2700;
-  width: 2.4rem;
-  height: 4.2rem;
-  margin-top: -2.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0 1.2rem 1.2rem 0;
-  background: rgba(255, 245, 247, 0.92);
-  border: 1.5px solid rgba(255, 117, 140, 0.45);
-  border-left: none;
-  box-shadow: 0 6px 18px rgba(255, 117, 140, 0.18);
-  color: #c45a72;
-  opacity: 0;
-  pointer-events: none;
-  transform: translate3d(-120%, -50%, 0);
-  transition: opacity 0.12s ease;
-}
-
-.edge-swipe-back-hint.is-active {
-  opacity: calc(0.35 + (var(--edge-swipe-progress, 0) * 0.65));
-}
-
-.edge-swipe-back-hint-arrow {
-  font-size: 1.6rem;
-  font-weight: 700;
-  line-height: 1;
-  transform: translateX(-1px);
-}
-
-html.theme-cyberpunk .edge-swipe-back-hint {
-  background: rgba(12, 16, 32, 0.92);
-  border-color: rgba(0, 246, 255, 0.45);
-  color: #9af7ff;
-  box-shadow: 0 0 18px rgba(0, 246, 255, 0.18);
 }
 
 /* ===== Toast & Loading ===== */
