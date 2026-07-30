@@ -8,7 +8,7 @@
   <title>✈️ 日本旅遊記帳 🇯🇵</title>
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="styles.css?v=20260730dx">
+  <link rel="stylesheet" href="styles.css?v=20260730ed">
 </head>
 <body>
   <header class="app-header">
@@ -113,13 +113,24 @@
           <input type="text" id="expense-description" name="description" placeholder="例：叙叙苑燒肉、Suica 增值">
         </div>
 
-        <div class="form-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
-          <div class="toggle-group" id="currency-toggle">
-            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
-            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+        <div class="form-row expense-essentials-row">
+          <div class="expense-essentials-grid" aria-label="幣別、邊個畀錢、樣嘢點計">
+            <button type="button" class="expense-cycle-chip expense-cycle-chip-icon-only" id="expense-currency-chip" aria-label="幣別：JPY">
+              <span class="expense-cycle-chip-icon" id="expense-currency-chip-icon"></span>
+            </button>
+            <button type="button" class="expense-cycle-chip" id="expense-payer-chip" aria-label="邊個畀錢：男孩">
+              <span class="expense-cycle-chip-icon" id="expense-payer-chip-icon"></span>
+              <span class="expense-cycle-chip-caption">邊個畀</span>
+            </button>
+            <button type="button" class="expense-cycle-chip" id="expense-split-chip" aria-label="樣嘢點計：一人一半">
+              <span class="expense-cycle-chip-icon" id="expense-split-chip-icon"></span>
+              <span class="expense-cycle-chip-caption">樣嘢點計</span>
+            </button>
           </div>
           <input type="hidden" id="expense-currency" name="currency" value="JPY">
+          <input type="hidden" id="expense-payer" name="payer" value="A">
+          <input type="hidden" id="expense-split-mode" name="split_mode" value="SPLIT_5050">
+          <p class="form-hint" id="expense-split-hint" aria-live="polite"></p>
         </div>
 
         <div class="form-row">
@@ -127,42 +138,6 @@
           <div class="money-input-wrap">
             <span class="money-prefix prefix-jpy" id="expense-amount-prefix">¥</span>
             <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="expense-amount" name="amount" placeholder="0" required>
-          </div>
-        </div>
-
-        <div class="form-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/credit-card.png" alt="" aria-hidden="true"> 邊個畀錢</label>
-          <div class="toggle-group" id="payer-toggle">
-            <button type="button" class="toggle-btn person-btn active" data-payer="A" aria-label="男孩付款"><img class="person-avatar person-avatar-btn" src="boy.png" alt=""></button>
-            <button type="button" class="toggle-btn person-btn" data-payer="B" aria-label="女生付款"><img class="person-avatar person-avatar-btn" src="girl.png" alt=""></button>
-          </div>
-          <input type="hidden" id="expense-payer" name="payer" value="A">
-        </div>
-
-        <div class="form-row help-pay-preset-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/help-pay.png" alt="" aria-hidden="true"> 幫畀快捷</label>
-          <div class="help-pay-presets">
-            <button type="button" class="help-pay-preset" data-help-preset="A_TO_B" aria-pressed="false"><span class="help-pay-preset-inner"><img class="person-avatar person-avatar-inline" src="boy.png" alt=""> 幫 <img class="person-avatar person-avatar-inline" src="girl.png" alt=""> 畀</span></button>
-            <button type="button" class="help-pay-preset" data-help-preset="B_TO_A" aria-pressed="false"><span class="help-pay-preset-inner"><img class="person-avatar person-avatar-inline" src="girl.png" alt=""> 幫 <img class="person-avatar person-avatar-inline" src="boy.png" alt=""> 畀</span></button>
-          </div>
-          <p class="form-hint" id="expense-split-hint" aria-live="polite"></p>
-        </div>
-
-        <div class="form-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/expense.png" alt="" aria-hidden="true"> 樣嘢點計</label>
-          <div class="split-options" id="split-options">
-            <label class="split-option">
-              <input type="radio" name="split_mode" value="SPLIT_5050" checked>
-              <span><span class="split-emoji-lg" aria-hidden="true">👥</span> 一人一半</span>
-            </label>
-            <label class="split-option">
-              <input type="radio" name="split_mode" value="FOR_A">
-              <span><span class="split-emoji-lg" aria-hidden="true">👦🏻</span> 自己嘅</span>
-            </label>
-            <label class="split-option">
-              <input type="radio" name="split_mode" value="FOR_B">
-              <span><span class="split-emoji-lg" aria-hidden="true">👩🏻</span> 自己嘅</span>
-            </label>
           </div>
         </div>
 
@@ -634,44 +609,29 @@
           <label for="edit-description"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 項目描述 <span class="label-optional">（選填）</span></label>
           <input type="text" id="edit-description">
         </div>
-        <div class="form-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
-          <div class="toggle-group" id="edit-currency-toggle">
-            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
-            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+        <div class="form-row expense-essentials-row" id="edit-essentials-row">
+          <div class="expense-essentials-grid" aria-label="幣別、邊個畀錢、樣嘢點計">
+            <button type="button" class="expense-cycle-chip expense-cycle-chip-icon-only" id="edit-currency-chip" aria-label="幣別：JPY">
+              <span class="expense-cycle-chip-icon" id="edit-currency-chip-icon"></span>
+            </button>
+            <button type="button" class="expense-cycle-chip" id="edit-payer-chip" aria-label="邊個畀錢：男孩">
+              <span class="expense-cycle-chip-icon" id="edit-payer-chip-icon"></span>
+              <span class="expense-cycle-chip-caption">邊個畀</span>
+            </button>
+            <button type="button" class="expense-cycle-chip" id="edit-split-chip" aria-label="樣嘢點計：一人一半">
+              <span class="expense-cycle-chip-icon" id="edit-split-chip-icon"></span>
+              <span class="expense-cycle-chip-caption">樣嘢點計</span>
+            </button>
           </div>
           <input type="hidden" id="edit-currency" value="JPY">
+          <input type="hidden" id="edit-payer" value="A">
+          <input type="hidden" id="edit-split-mode" value="SPLIT_5050">
         </div>
         <div class="form-row">
           <label for="edit-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 金額</label>
           <div class="money-input-wrap">
             <span class="money-prefix prefix-jpy" id="edit-amount-prefix">¥</span>
             <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="edit-amount" required>
-          </div>
-        </div>
-        <div class="form-row" id="edit-payer-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/credit-card.png" alt="" aria-hidden="true"> 邊個畀錢</label>
-          <div class="toggle-group" id="edit-payer-toggle">
-            <button type="button" class="toggle-btn person-btn active" data-payer="A" aria-label="男孩付款"><img class="person-avatar person-avatar-btn" src="boy.png" alt=""></button>
-            <button type="button" class="toggle-btn person-btn" data-payer="B" aria-label="女生付款"><img class="person-avatar person-avatar-btn" src="girl.png" alt=""></button>
-          </div>
-          <input type="hidden" id="edit-payer" value="A">
-        </div>
-        <div class="form-row" id="edit-split-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/expense.png" alt="" aria-hidden="true"> 樣嘢點計</label>
-          <div class="split-options" id="edit-split-options">
-            <label class="split-option">
-              <input type="radio" name="edit_split_mode" value="SPLIT_5050">
-              <span><span class="split-emoji-lg" aria-hidden="true">👥</span> 一人一半</span>
-            </label>
-            <label class="split-option">
-              <input type="radio" name="edit_split_mode" value="FOR_A">
-              <span><span class="split-emoji-lg" aria-hidden="true">👦🏻</span> 自己嘅</span>
-            </label>
-            <label class="split-option">
-              <input type="radio" name="edit_split_mode" value="FOR_B">
-              <span><span class="split-emoji-lg" aria-hidden="true">👩🏻</span> 自己嘅</span>
-            </label>
           </div>
         </div>
         <div class="edit-form-actions">
@@ -789,6 +749,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260730dw"></script>
+  <script src="app.js?v=20260730eb"></script>
 </body>
 </html>

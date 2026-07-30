@@ -649,6 +649,90 @@ function compactTitleSuffixHtml(tx) {
   return compactCreamChipHtml(personImg(tx.payer, 'xs'), payerName);
 }
 
+function formatListRecordTime(tx) {
+  return formatRecordTime(tx.time) || '--:--';
+}
+
+function formatDayHeader(dateStr) {
+  if (!dateStr) return '未填日期';
+  const d = new Date(`${dateStr}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+  return `${dateStr}（星期${weekdays[d.getDay()]}）`;
+}
+
+function groupTransactionsByDate(items) {
+  const groups = [];
+  const indexByDate = new Map();
+  for (const tx of items) {
+    const date = tx.date || '';
+    if (!indexByDate.has(date)) {
+      indexByDate.set(date, groups.length);
+      groups.push({ date, items: [] });
+    }
+    groups[indexByDate.get(date)].items.push(tx);
+  }
+  for (const group of groups) {
+    group.items.sort((a, b) => {
+      const ta = formatRecordTime(a.time) || '00:00';
+      const tb = formatRecordTime(b.time) || '00:00';
+      return tb.localeCompare(ta);
+    });
+  }
+  return groups;
+}
+
+function listRecordSplitIconHtml(tx) {
+  if (isLoanTransaction(tx) || isRepayTransaction(tx) || usesCombinedSplitTag(tx)) {
+    return compactTitleSuffixHtml(tx);
+  }
+  return `<span class="tx-list-split-badge">${splitTagHtml(tx)}</span>`;
+}
+
+function listRecordPayerHtml(tx) {
+  const name = tx.payer === 'A' ? '男孩' : '女生';
+  return `<span class="tx-list-payer" aria-label="${name}付款">${personImg(tx.payer, 'xs')}</span>`;
+}
+
+function buildTransactionLocationInlineHtml(tx) {
+  const location = getLocationText(tx);
+  if (!location) return '';
+  const mapsUrl = locationMapsUrl(location);
+  return `<span class="tx-record-location"><a class="tx-location-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">📍 ${escapeHtml(location)}</a></span>`;
+}
+
+function buildTransactionItemHtml(tx) {
+  const curClass = tx.currency === 'JPY' ? 'jpy' : 'hkd';
+  const txKey = getTxKey(tx);
+  const isRepay = isRepayTransaction(tx);
+  const isLoan = isLoanTransaction(tx);
+  const specialClass = isRepay ? ' repay-item' : isLoan ? ' loan-item' : '';
+  const title = getTransactionTitle(tx);
+
+  return `
+    <li class="transaction-item${specialClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(title)} 詳情">
+      <div class="tx-record-primary">
+        <span class="tx-record-time">${escapeHtml(formatListRecordTime(tx))}</span>
+        <span class="tx-record-desc-group">
+          <span class="tx-record-desc">${escapeHtml(title)}</span>
+          ${buildTransactionLocationInlineHtml(tx)}
+        </span>
+      </div>
+      <div class="tx-record-secondary">
+        <span class="tx-record-split">${listRecordSplitIconHtml(tx)}</span>
+        <span class="tx-record-amount">
+          <span class="tx-currency ${curClass}">${tx.currency}</span>
+          <span class="tx-amount ${curClass}">${formatMoney(tx.amount, tx.currency)}</span>
+        </span>
+        ${listRecordPayerHtml(tx)}
+        <button type="button" class="btn-edit edit-btn" data-key="${escapeHtml(txKey)}" aria-label="編輯">
+          <span class="btn-edit-icon" aria-hidden="true">✏️</span>
+          <span class="btn-edit-text">編輯</span>
+        </button>
+      </div>
+    </li>`;
+}
+
 function splitTagHtml(tx) {
   if (isRepayTransaction(tx)) {
     return `${categoryIconHtml('還錢', 'inline', '還錢')} 還錢`;
@@ -1005,29 +1089,82 @@ function nowLocalTimeHM() {
   return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 }
 
-function applySplitLabelsToDom() {
-  ['#split-options', '#edit-split-options'].forEach((selector) => {
-    document.querySelectorAll(`${selector} .split-option`).forEach((label) => {
-      const input = label.querySelector('input[type="radio"]');
-      const textSpan = label.querySelector(':scope > span');
-      if (!input || !textSpan) return;
-      if (input.value === 'SPLIT_5050') {
-        textSpan.innerHTML = `${splitIconHtml('SPLIT_5050', 'split')} 一人一半`;
-        return;
-      }
-      if (input.value === 'FOR_A') {
-        textSpan.innerHTML = `${personImg('A', 'split')} 自己嘅`;
-        return;
-      }
-      if (input.value === 'FOR_B') {
-        textSpan.innerHTML = `${personImg('B', 'split')} 自己嘅`;
-        return;
-      }
-      const splitLabel = SPLIT_LABELS[input.value];
-      if (!splitLabel) return;
-      textSpan.innerHTML = escapeHtml(splitLabel);
-    });
+const EXPENSE_CURRENCY_CYCLE = ['JPY', 'HKD'];
+const EXPENSE_PAYER_CYCLE = ['A', 'B'];
+const EXPENSE_SPLIT_CYCLE = ['SPLIT_5050', 'FOR_A', 'FOR_B'];
+
+function cycleExpenseValue(order, current) {
+  const idx = order.indexOf(current);
+  return order[(idx + 1) % order.length];
+}
+
+function getExpenseSplitModeValue(prefix = 'expense') {
+  return $(`#${prefix}-split-mode`)?.value || 'SPLIT_5050';
+}
+
+function syncExpenseEssentialsUi(prefix = 'expense') {
+  const currency = $(`#${prefix}-currency`)?.value || 'JPY';
+  const payer = $(`#${prefix}-payer`)?.value || 'A';
+  const split = getExpenseSplitModeValue(prefix);
+  const payerName = payer === 'A' ? '男孩' : '女生';
+
+  const currencyIconEl = $(`#${prefix}-currency-chip-icon`);
+  const currencyChip = $(`#${prefix}-currency-chip`);
+  if (currencyIconEl) currencyIconEl.innerHTML = currencyUiIconHtml(currency, 'currency');
+  currencyChip?.setAttribute('aria-label', `幣別：${currency}`);
+
+  const payerIconEl = $(`#${prefix}-payer-chip-icon`);
+  const payerChip = $(`#${prefix}-payer-chip`);
+  if (payerIconEl) payerIconEl.innerHTML = personImg(payer, 'lg');
+  payerChip?.setAttribute('aria-label', `邊個畀錢：${payerName}`);
+
+  const splitIconEl = $(`#${prefix}-split-chip-icon`);
+  const splitChip = $(`#${prefix}-split-chip`);
+  if (split === 'SPLIT_5050') {
+    if (splitIconEl) splitIconEl.innerHTML = splitIconHtml('SPLIT_5050', 'cycle');
+    splitChip?.setAttribute('aria-label', '樣嘢點計：一人一半');
+  } else if (split === 'FOR_A') {
+    if (splitIconEl) splitIconEl.innerHTML = personImg('A', 'lg');
+    splitChip?.setAttribute('aria-label', '樣嘢點計：男孩自己嘅');
+  } else {
+    if (splitIconEl) splitIconEl.innerHTML = personImg('B', 'lg');
+    splitChip?.setAttribute('aria-label', '樣嘢點計：女生自己嘅');
+  }
+
+  if (prefix === 'expense') updateExpenseSplitHint();
+}
+
+function setExpenseEssentials(prefix, { currency, payer, split } = {}) {
+  if (currency) $(`#${prefix}-currency`).value = currency;
+  if (payer) $(`#${prefix}-payer`).value = payer;
+  if (split) $(`#${prefix}-split-mode`).value = split;
+  syncExpenseEssentialsUi(prefix);
+}
+
+function setupExpenseEssentials(prefix, { onCurrencyChange } = {}) {
+  $(`#${prefix}-currency-chip`)?.addEventListener('click', () => {
+    const input = $(`#${prefix}-currency`);
+    if (!input) return;
+    input.value = cycleExpenseValue(EXPENSE_CURRENCY_CYCLE, input.value);
+    if (onCurrencyChange) onCurrencyChange(input.value);
+    syncExpenseEssentialsUi(prefix);
   });
+
+  $(`#${prefix}-payer-chip`)?.addEventListener('click', () => {
+    const input = $(`#${prefix}-payer`);
+    if (!input) return;
+    input.value = cycleExpenseValue(EXPENSE_PAYER_CYCLE, input.value);
+    syncExpenseEssentialsUi(prefix);
+  });
+
+  $(`#${prefix}-split-chip`)?.addEventListener('click', () => {
+    const input = $(`#${prefix}-split-mode`);
+    if (!input) return;
+    input.value = cycleExpenseValue(EXPENSE_SPLIT_CYCLE, input.value);
+    syncExpenseEssentialsUi(prefix);
+  });
+
+  syncExpenseEssentialsUi(prefix);
 }
 
 function hasDayRangeFilter() {
@@ -2807,51 +2944,12 @@ function renderTransactionList() {
     return;
   }
 
-  list.innerHTML = meta.items
-    .map((tx) => {
-      const curClass = tx.currency === 'JPY' ? 'jpy' : 'hkd';
-      const payerLabel = personImg(tx.payer, 'inline');
-      const txKey = getTxKey(tx);
-      const isRepay = isRepayTransaction(tx);
-      const isLoan = isLoanTransaction(tx);
-      const specialClass = isRepay ? ' repay-item' : isLoan ? ' loan-item' : '';
-      const iconHtml = transactionIconHtml(tx, 'list');
-      const timePart = tx.time ? ` · ${formatRecordTime(tx.time)}` : '';
-      const compactTitleSuffix = compactTitleSuffixHtml(tx);
-      const compactHint = `${escapeHtml(tx.date)}${escapeHtml(timePart)} · ${escapeHtml(tx.currency)}`;
-
-      const useCombinedSplit = usesCombinedSplitTag(tx);
-      const tagsHtml = useCombinedSplit
-        ? `<span class="tx-tag split split-combined ${combinedSplitTagClass(tx)}">${combinedSplitTagHtml(tx)}</span>`
-        : `<span class="tx-tag payer" aria-label="${tx.payer === 'A' ? '男孩付款' : '女生付款'}">${payerLabel}</span>
-              <span class="tx-tag split">${splitTagHtml(tx)}</span>`;
-
-      return `
-        <li class="transaction-item${specialClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(getTransactionTitle(tx))} 詳情">
-          <div class="tx-icon">${iconHtml}</div>
-          <div class="tx-body">
-            <div class="tx-title">
-              <span class="tx-title-text">${escapeHtml(getTransactionTitle(tx))}</span><span class="tx-title-badge">${compactTitleSuffix}</span>
-            </div>
-            <div class="tx-compact-hint">${compactHint}</div>
-            <div class="tx-meta">${formatTransactionMeta(tx)}</div>
-            ${formatTransactionLocationHtml(tx)}
-            <div class="tx-tags">
-              ${tagsHtml}
-            </div>
-          </div>
-          <div class="tx-right">
-            <div class="tx-amount-row">
-              <span class="tx-currency ${curClass}">${tx.currency}</span>
-              <span class="tx-amount ${curClass}">${formatMoney(tx.amount, tx.currency)}</span>
-            </div>
-            <button type="button" class="btn-edit edit-btn" data-key="${escapeHtml(txKey)}" aria-label="編輯">
-              <span class="btn-edit-icon" aria-hidden="true">✏️</span>
-              <span class="btn-edit-text">編輯</span>
-            </button>
-          </div>
-        </li>`;
-    })
+  list.innerHTML = groupTransactionsByDate(meta.items)
+    .map(
+      (group) => `
+        <li class="tx-day-header">${escapeHtml(formatDayHeader(group.date))}</li>
+        ${group.items.map((tx) => buildTransactionItemHtml(tx)).join('')}`
+    )
     .join('');
 
   list.querySelectorAll('.edit-btn').forEach((btn) => {
@@ -3046,21 +3144,8 @@ function updateMoneyPrefix(prefixEl, currency) {
 
 function setupMoneyInputs() {
   $$('.money-input').forEach(bindMoneyInput);
-
-  const expensePrefix = $('#expense-amount-prefix');
-  $('#currency-toggle').querySelectorAll('.toggle-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      updateMoneyPrefix(expensePrefix, btn.dataset.currency);
-    });
-  });
-  updateMoneyPrefix(expensePrefix, $('#expense-currency').value);
-
-  const editPrefix = $('#edit-amount-prefix');
-  $('#edit-currency-toggle').querySelectorAll('.toggle-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      updateMoneyPrefix(editPrefix, btn.dataset.currency);
-    });
-  });
+  updateMoneyPrefix($('#expense-amount-prefix'), $('#expense-currency')?.value || 'JPY');
+  updateMoneyPrefix($('#edit-amount-prefix'), $('#edit-currency')?.value || 'JPY');
 }
 
 function setToggleValue(groupId, hiddenId, attr, value) {
@@ -3077,7 +3162,7 @@ function updateExpenseSplitHint() {
   if (!hint) return;
 
   const payer = $('#expense-payer').value;
-  const split = document.querySelector('#split-options input[name="split_mode"]:checked')?.value;
+  const split = getExpenseSplitModeValue('expense');
 
   if (split === 'FOR_B' && payer === 'A') {
     hint.innerHTML = `${personImg('A', 'inline')} 幫 ${personImg('B', 'inline')} 畀 → ${personImg('B', 'inline')} 要還全額`;
@@ -3095,57 +3180,6 @@ function updateExpenseSplitHint() {
   } else {
     hint.innerHTML = '';
   }
-}
-
-function syncHelpPayPresetUi() {
-  const payer = $('#expense-payer').value;
-  const split = document.querySelector('#split-options input[name="split_mode"]:checked')?.value;
-  document.querySelectorAll('.help-pay-preset').forEach((btn) => {
-    const active =
-      (btn.dataset.helpPreset === 'A_TO_B' && payer === 'A' && split === 'FOR_B') ||
-      (btn.dataset.helpPreset === 'B_TO_A' && payer === 'B' && split === 'FOR_A');
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
-}
-
-function applyHelpPayPreset(preset) {
-  if (preset === 'A_TO_B') {
-    setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
-    const input = document.querySelector('#split-options input[value="FOR_B"]');
-    if (input) input.checked = true;
-  } else if (preset === 'B_TO_A') {
-    setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'B');
-    const input = document.querySelector('#split-options input[value="FOR_A"]');
-    if (input) input.checked = true;
-  }
-  syncHelpPayPresetUi();
-  updateExpenseSplitHint();
-}
-
-function setupHelpPayPresets() {
-  document.querySelectorAll('.help-pay-preset').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      applyHelpPayPreset(btn.dataset.helpPreset);
-    });
-  });
-
-  $('#payer-toggle')?.querySelectorAll('.toggle-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      syncHelpPayPresetUi();
-      updateExpenseSplitHint();
-    });
-  });
-
-  document.querySelectorAll('#split-options input[name="split_mode"]').forEach((input) => {
-    input.addEventListener('change', () => {
-      syncHelpPayPresetUi();
-      updateExpenseSplitHint();
-    });
-  });
-
-  syncHelpPayPresetUi();
-  updateExpenseSplitHint();
 }
 
 /* ===== Modals ===== */
@@ -3262,8 +3296,7 @@ function openLoanModal() {
 function resolveEditSplitMode(existing) {
   if (existing.split_mode === 'REPAY' || isRepayTransaction(existing)) return 'REPAY';
   if (existing.split_mode === 'LOAN' || isLoanTransaction(existing)) return 'LOAN';
-  const checked = document.querySelector('#edit-split-options input[name="edit_split_mode"]:checked');
-  return checked ? checked.value : (existing.split_mode || 'SPLIT_5050');
+  return getExpenseSplitModeValue('edit') || existing.split_mode || 'SPLIT_5050';
 }
 
 function openEditModal(key) {
@@ -3281,22 +3314,20 @@ function openEditModal(key) {
   );
   $('#edit-description').value = tx.description;
   $('#edit-amount').value = tx.amount;
-  setToggleValue('#edit-currency-toggle', '#edit-currency', 'currency', tx.currency);
-  updateMoneyPrefix($('#edit-amount-prefix'), tx.currency);
-  setToggleValue('#edit-payer-toggle', '#edit-payer', 'payer', tx.payer);
-  const splitRow = $('#edit-split-row');
-  const payerRow = $('#edit-payer-row');
+  const essentialsRow = $('#edit-essentials-row');
   if (isCashTransferTransaction(tx)) {
-    splitRow.classList.add('hidden');
-    payerRow.classList.add('hidden');
+    essentialsRow?.classList.add('hidden');
+    $('#edit-currency').value = tx.currency;
+    $('#edit-payer').value = tx.payer;
   } else {
-    splitRow.classList.remove('hidden');
-    payerRow.classList.remove('hidden');
-    const radio = document.querySelector(
-      `#edit-split-options input[value="${tx.split_mode}"]`
-    );
-    if (radio) radio.checked = true;
+    essentialsRow?.classList.remove('hidden');
+    setExpenseEssentials('edit', {
+      currency: tx.currency,
+      payer: tx.payer,
+      split: tx.split_mode,
+    });
   }
+  updateMoneyPrefix($('#edit-amount-prefix'), tx.currency);
 
   openModal(els.editModal);
 }
@@ -3520,11 +3551,12 @@ function setupCurrencyViewSelector() {
 
 /* ===== Event Handlers ===== */
 function setupEventListeners() {
-  setupToggle('#currency-toggle', '#expense-currency', 'currency', 'JPY');
-  setupToggle('#payer-toggle', '#expense-payer', 'payer', 'A');
-  setupToggle('#edit-currency-toggle', '#edit-currency', 'currency', 'JPY');
-  setupToggle('#edit-payer-toggle', '#edit-payer', 'payer', 'A');
-  setupHelpPayPresets();
+  setupExpenseEssentials('expense', {
+    onCurrencyChange: (currency) => updateMoneyPrefix($('#expense-amount-prefix'), currency),
+  });
+  setupExpenseEssentials('edit', {
+    onCurrencyChange: (currency) => updateMoneyPrefix($('#edit-amount-prefix'), currency),
+  });
 
   setupListFilters();
   setupCategoryPicker('#expense-category', '#expense-custom-category-row', '#expense-custom-category');
@@ -3768,10 +3800,12 @@ function setupEventListeners() {
         setCategoryPickerOpen(getCategoryPickerWrap('expense-category'), false);
         $('#expense-custom-category-row').classList.add('hidden');
         $('#expense-custom-category').value = '';
-        setToggleValue('#currency-toggle', '#expense-currency', 'currency', 'JPY');
+        setExpenseEssentials('expense', {
+          currency: 'JPY',
+          payer: 'A',
+          split: 'SPLIT_5050',
+        });
         updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
-        setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
-        syncHelpPayPresetUi();
         updateExpenseSplitHint();
         showToast(`${uiIconHtml('success', 'btn')} 已新增並同步至試算表`, 'success');
         recordSyncOk = true;
@@ -4011,7 +4045,6 @@ function setupIconTapFeedback() {
 async function init() {
   els.expenseDate.value = todayISO();
   initListDayFilter();
-  applySplitLabelsToDom();
   setupTabs();
   setupCurrencyViewSelector();
   setupMoneyInputs();
