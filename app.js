@@ -2477,9 +2477,10 @@ function helpPayText(bHelpedA, aHelpedB, currency) {
   if (!rows.length) return '';
 
   const helpNet = helpNetBOwesA(aHelpedB, bHelpedA);
-  const netLine = isNegligibleMoney(helpNet, currency)
-    ? '對消後（未計還錢）大家唔欠'
-    : `對消後（未計還錢）${formatNetDirectionHtml(helpNet, currency)}`;
+  const netResult = isNegligibleMoney(helpNet, currency)
+    ? '大家唔欠'
+    : formatNetDirectionHtml(helpNet, currency);
+  const netLine = `<span class="help-pay-net-label">對消後（未計還錢）</span><span class="help-pay-net-result">${netResult}</span>`;
 
   return `<div class="help-pay-stack">
     ${rows.map((row) => `<div class="help-pay-row">${row}</div>`).join('')}
@@ -2517,13 +2518,13 @@ function settlementText(netAmount, currency) {
   if (netAmount > 0) {
     return {
       text: `${personName('B')} 要還俾 ${personName('A')}：${formatMoney(netAmount, currency)}`,
-      html: `<span class="settlement-who">${personImg('B', 'inline')} 要還俾 ${personImg('A', 'inline')}</span><span class="settlement-amount">${moneyFigHtml(netAmount, currency, 'money-debt')}</span>`,
+      html: `${personImg('B', 'inline')} 要還俾 ${personImg('A', 'inline')}：${moneyFigHtml(netAmount, currency, 'money-debt')}`,
       balanced: false,
     };
   }
   return {
     text: `${personName('A')} 要還俾 ${personName('B')}：${formatMoney(Math.abs(netAmount), currency)}`,
-    html: `<span class="settlement-who">${personImg('A', 'inline')} 要還俾 ${personImg('B', 'inline')}</span><span class="settlement-amount">${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}</span>`,
+    html: `${personImg('A', 'inline')} 要還俾 ${personImg('B', 'inline')}：${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}`,
     balanced: false,
   };
 }
@@ -2941,7 +2942,7 @@ function renderSummary() {
     const settlement = settlementText(net[cur], cur);
     const badge = currencyUiIconHtml(cur, 'sm');
     const el = $(`#settlement-${lower}`);
-    el.innerHTML = `<span class="settlement-line-head">${badge}</span><span class="settlement-line-body">${settlement.html}</span>`;
+    el.innerHTML = `${badge} ${settlement.html}`;
     el.classList.remove('balanced', 'debt');
     el.classList.add(settlement.balanced ? 'balanced' : 'debt');
 
