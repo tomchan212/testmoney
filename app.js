@@ -1241,20 +1241,18 @@ function formatDayRangeLabel() {
   return '';
 }
 
-function formatDayRangeChipLabel(from, to) {
-  if (!from && !to) return '全部';
-  const today = todayISO();
-  if (from === today && to === today) return '今日';
-  if (from && to && from === to) return formatShortDayLabel(from);
-  if (from && to) return `${formatShortDayLabel(from)}～${formatShortDayLabel(to)}`;
-  if (from) return `${formatShortDayLabel(from)}起`;
-  if (to) return `至${formatShortDayLabel(to)}`;
-  return '自定範圍';
+function formatDayRangeBarLabel(from, to) {
+  if (!from && !to) return '';
+  if (from && to && from === to) return `[${formatShortDayLabel(from)}]`;
+  if (from && to) return `[${formatShortDayLabel(from)}～${formatShortDayLabel(to)}]`;
+  if (from) return `[${formatShortDayLabel(from)}起]`;
+  if (to) return `[至${formatShortDayLabel(to)}]`;
+  return '';
 }
 
 function formatShortDayLabel(iso) {
   if (!iso || iso.length < 10) return iso || '';
-  return `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`;
+  return `${Number(iso.slice(8, 10))}/${Number(iso.slice(5, 7))}`;
 }
 
 function parseISODateParts(iso) {
@@ -1300,7 +1298,7 @@ function getQuickDayValueLabel() {
   const scope = getQuickDayScope();
   if (scope === 'all') return '全部';
   if (scope === 'today') return '今日';
-  return formatDayRangeChipLabel(listFilters.dayFrom, listFilters.dayTo);
+  return '自定範圍';
 }
 
 function openDayRangePicker() {
@@ -1477,9 +1475,32 @@ function syncQuickFilterChips() {
   if (dayIconEl) dayIconEl.innerHTML = uiIconHtml('date', 'md');
   if (dayLabelEl) dayLabelEl.textContent = getQuickDayValueLabel();
   const dayActive = hasDayRangeFilter();
+  const dayScope = getQuickDayScope();
   dayChip?.classList.toggle('is-active', dayActive);
   dayChip?.setAttribute('aria-pressed', dayActive ? 'true' : 'false');
-  dayChip?.setAttribute('aria-label', `日子：${getQuickDayValueLabel()}`);
+  const rangeBarLabel = dayScope === 'custom'
+    ? formatDayRangeBarLabel(listFilters.dayFrom, listFilters.dayTo)
+    : '';
+  dayChip?.setAttribute(
+    'aria-label',
+    dayScope === 'custom' && rangeBarLabel
+      ? `日子：自定範圍 ${rangeBarLabel}`
+      : `日子：${getQuickDayValueLabel()}`
+  );
+
+  const rangeBar = $('#filter-day-range-bar');
+  const rangeBarText = $('#filter-day-range-bar-text');
+  if (rangeBar && rangeBarText) {
+    if (dayScope === 'custom' && rangeBarLabel) {
+      rangeBarText.textContent = rangeBarLabel;
+      rangeBar.classList.remove('hidden');
+      rangeBar.setAttribute('aria-label', `自定日期範圍 ${rangeBarLabel}`);
+    } else {
+      rangeBarText.textContent = '';
+      rangeBar.classList.add('hidden');
+      rangeBar.setAttribute('aria-label', '自定日期範圍');
+    }
+  }
 
   const currency = listFilters.currency || '';
   const currencyIconEl = $('#filter-currency-chip-icon');
@@ -1549,6 +1570,7 @@ function syncQuickFilterChips() {
 
 function setupQuickFilterToggles(onChange) {
   $('#filter-day-chip')?.addEventListener('click', () => openDayRangePicker());
+  $('#filter-day-range-bar')?.addEventListener('click', () => openDayRangePicker());
   $('#filter-currency-chip')?.addEventListener('click', () => cycleQuickCurrencyFilter(onChange));
   $('#filter-payer-chip')?.addEventListener('click', () => cycleQuickPayerFilter(onChange));
   $('#filter-split-chip')?.addEventListener('click', () => cycleQuickSplitFilter(onChange));

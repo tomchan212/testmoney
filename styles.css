@@ -3099,6 +3099,45 @@ button.currency-label.badge-all.active {
   gap: 0.4rem;
 }
 
+.filter-day-range-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  border: 1.5px solid rgba(255, 117, 140, 0.35);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(255, 240, 244, 0.95), #fff);
+  color: #c45a72;
+  font: inherit;
+  font-size: var(--type-label);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(255, 117, 140, 0.1);
+}
+
+.filter-day-range-bar.hidden {
+  display: none;
+}
+
+.filter-day-range-bar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.filter-day-range-bar-text {
+  min-width: 0;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .filter-quick-chip-wrap {
   position: relative;
   min-width: 0;
@@ -5161,6 +5200,13 @@ html.theme-cyberpunk .filter-quick-chip.is-open {
   background: linear-gradient(135deg, rgba(255, 43, 214, 0.28), rgba(0, 246, 255, 0.2)) !important;
   border-color: #00f6ff;
   box-shadow: 0 0 12px rgba(0, 246, 255, 0.22);
+}
+
+html.theme-cyberpunk .filter-day-range-bar {
+  background: linear-gradient(135deg, rgba(255, 43, 214, 0.22), rgba(0, 246, 255, 0.14)) !important;
+  border-color: rgba(0, 246, 255, 0.45);
+  color: #9af7ff;
+  box-shadow: 0 0 12px rgba(0, 246, 255, 0.16);
 }
 
 html.theme-cyberpunk .filter-quick-chip-label {
