@@ -2517,13 +2517,13 @@ function settlementText(netAmount, currency) {
   if (netAmount > 0) {
     return {
       text: `${personName('B')} 要還俾 ${personName('A')}：${formatMoney(netAmount, currency)}`,
-      html: `${personImg('B', 'inline')} 要還俾 ${personImg('A', 'inline')}：${moneyFigHtml(netAmount, currency, 'money-debt')}`,
+      html: `<span class="settlement-who">${personImg('B', 'inline')} 要還俾 ${personImg('A', 'inline')}</span><span class="settlement-amount">${moneyFigHtml(netAmount, currency, 'money-debt')}</span>`,
       balanced: false,
     };
   }
   return {
     text: `${personName('A')} 要還俾 ${personName('B')}：${formatMoney(Math.abs(netAmount), currency)}`,
-    html: `${personImg('A', 'inline')} 要還俾 ${personImg('B', 'inline')}：${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}`,
+    html: `<span class="settlement-who">${personImg('A', 'inline')} 要還俾 ${personImg('B', 'inline')}</span><span class="settlement-amount">${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}</span>`,
     balanced: false,
   };
 }
@@ -2941,7 +2941,7 @@ function renderSummary() {
     const settlement = settlementText(net[cur], cur);
     const badge = currencyUiIconHtml(cur, 'sm');
     const el = $(`#settlement-${lower}`);
-    el.innerHTML = `${badge} ${settlement.html}`;
+    el.innerHTML = `<span class="settlement-line-head">${badge}</span><span class="settlement-line-body">${settlement.html}</span>`;
     el.classList.remove('balanced', 'debt');
     el.classList.add(settlement.balanced ? 'balanced' : 'debt');
 
