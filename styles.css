@@ -1908,7 +1908,8 @@ button.currency-label.badge-all.active {
 }
 
 .list-card .filter-quick-chip-icon .ui-icon-md,
-.list-card .filter-quick-chip-icon .person-avatar-md {
+.list-card .filter-quick-chip-icon .person-avatar-md,
+.list-card .filter-quick-chip-icon .split-icon-md {
   width: 2.65rem;
   height: 2.65rem;
   min-width: 2.65rem;
@@ -3085,7 +3086,7 @@ button.currency-label.badge-all.active {
 
 .filter-quick-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.4rem;
 }
 
@@ -3147,7 +3148,8 @@ button.currency-label.badge-all.active {
 }
 
 .filter-quick-chip-icon .ui-icon-md,
-.filter-quick-chip-icon .person-avatar-md {
+.filter-quick-chip-icon .person-avatar-md,
+.filter-quick-chip-icon .split-icon-md {
   width: 2.15rem;
   height: 2.15rem;
   min-width: 2.15rem;

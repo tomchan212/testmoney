@@ -245,7 +245,7 @@
 
     <!-- Tab: 紀錄 -->
     <div id="tab-list" class="tab-panel" role="tabpanel" aria-label="紀錄">
-      <section class="card list-card list-expanded" id="list-card">
+      <section class="card list-card list-compact" id="list-card">
       <div class="section-header">
         <h2><img class="ui-icon ui-icon-title" src="icons/theme.png?v=20260730df" alt="" aria-hidden="true"> 紀錄</h2>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-refresh">🔄 刷新</button>
@@ -291,6 +291,20 @@
                   <span class="filter-quick-chip-label">邊個畀</span>
                 </button>
                 <input type="hidden" id="filter-payer" value="">
+              </div>
+
+              <div class="filter-quick-chip-wrap">
+                <button
+                  type="button"
+                  class="filter-quick-chip filter-quick-chip-icon-only"
+                  id="filter-split5050-chip"
+                  aria-pressed="false"
+                  aria-label="一人一半：全部"
+                >
+                  <span class="filter-quick-chip-icon" id="filter-split5050-chip-icon"><img class="split-icon split-icon-md" src="icons/split-half.png?v=20260729cx" alt="" aria-hidden="true"></span>
+                  <span class="filter-quick-chip-label">一人一半</span>
+                </button>
+                <input type="hidden" id="filter-split5050" value="">
               </div>
             </div>
           </div>
@@ -424,7 +438,7 @@
 
       <div class="list-result-bar">
         <span class="pagination-info" id="pagination-info-top">共 0 筆</span>
-        <button type="button" class="btn-list-toggle" id="btn-list-detail-toggle-top" aria-expanded="true" aria-label="收起明細詳情">收起 ▲</button>
+        <button type="button" class="btn-list-toggle" id="btn-list-detail-toggle-top" aria-expanded="false" aria-label="展開明細詳情">展開 ▼</button>
       </div>
 
       <ul id="transaction-list" class="transaction-list">
@@ -450,7 +464,7 @@
         </div>
         <div class="pagination-info-row">
           <span class="pagination-info" id="pagination-info">共 0 筆</span>
-          <button type="button" class="btn-list-toggle" id="btn-list-detail-toggle-bottom" aria-expanded="true" aria-label="收起明細詳情">收起 ▲</button>
+          <button type="button" class="btn-list-toggle" id="btn-list-detail-toggle-bottom" aria-expanded="false" aria-label="展開明細詳情">展開 ▼</button>
         </div>
       </div>
       </section>
