@@ -225,7 +225,7 @@ let lastSyncedAt = null;
 let currencyView = 'jpy';
 let loadingProgressTimer = null;
 let loadingProgressValue = 0;
-let listViewExpanded = true;
+let listViewExpanded = false;
 
 const listFilters = {
   dayFrom: '',
@@ -1056,6 +1056,7 @@ function setupListFilterPickers(onChange) {
   });
   setupFilterIconPicker('filter-split', FILTER_SPLIT_ITEMS, (value) => {
     listFilters.splitMode = value;
+    syncQuickFilterChips();
     onChange?.();
   });
 }
@@ -1244,6 +1245,21 @@ function cycleQuickPayerFilter(onChange) {
   onChange();
 }
 
+function syncSplitFilterPicker() {
+  const input = $('#filter-split');
+  if (input) input.value = listFilters.splitMode || '';
+  const wrap = document.querySelector('[data-filter-picker="filter-split"]');
+  if (wrap) syncFilterPicker(wrap, FILTER_SPLIT_ITEMS, listFilters.splitMode || '');
+}
+
+function cycleQuickSplit5050Filter(onChange) {
+  listFilters.splitMode = listFilters.splitMode === 'SPLIT_5050' ? '' : 'SPLIT_5050';
+  syncSplitFilterPicker();
+  syncQuickFilterChips();
+  updateFilterActiveSummary();
+  onChange();
+}
+
 function syncQuickFilterChips() {
   const dayScope = getQuickDayScope();
   const dayLabelEl = $('#filter-day-chip-label');
@@ -1283,16 +1299,33 @@ function syncQuickFilterChips() {
     payer === 'A' ? '邊個畀：男孩' : payer === 'B' ? '邊個畀：女生' : '邊個畀：全部'
   );
 
+  const split5050Active = listFilters.splitMode === 'SPLIT_5050';
+  const splitIconEl = $('#filter-split5050-chip-icon');
+  const splitChip = $('#filter-split5050-chip');
+  if (splitIconEl) {
+    splitIconEl.innerHTML =
+      splitIconHtml('SPLIT_5050', 'md', '一人一半') || uiIconHtml('expense', 'md');
+  }
+  splitChip?.classList.toggle('is-active', split5050Active);
+  splitChip?.setAttribute('aria-pressed', split5050Active ? 'true' : 'false');
+  splitChip?.setAttribute(
+    'aria-label',
+    split5050Active ? '一人一半：已篩選' : '一人一半：全部'
+  );
+
   const currencyHidden = $('#filter-currency');
   if (currencyHidden) currencyHidden.value = currency;
   const payerHidden = $('#filter-payer');
   if (payerHidden) payerHidden.value = payer;
+  const splitHidden = $('#filter-split5050');
+  if (splitHidden) splitHidden.value = split5050Active ? 'SPLIT_5050' : '';
 }
 
 function setupQuickFilterToggles(onChange) {
   $('#filter-day-chip')?.addEventListener('click', () => cycleQuickDayFilter(onChange));
   $('#filter-currency-chip')?.addEventListener('click', () => cycleQuickCurrencyFilter(onChange));
   $('#filter-payer-chip')?.addEventListener('click', () => cycleQuickPayerFilter(onChange));
+  $('#filter-split5050-chip')?.addEventListener('click', () => cycleQuickSplit5050Filter(onChange));
   syncQuickFilterChips();
 }
 
@@ -3067,10 +3100,10 @@ function syncPageSizeSelects(value) {
 function loadListViewExpanded() {
   try {
     const saved = localStorage.getItem(LIST_DETAIL_STORAGE_KEY);
-    if (saved === null) return true;
+    if (saved === null) return false;
     return saved === '1';
   } catch (_) {
-    return true;
+    return false;
   }
 }
 
