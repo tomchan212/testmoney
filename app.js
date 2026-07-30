@@ -351,6 +351,37 @@ function endMutation() {
   updateSyncStatusFromQueue();
 }
 
+const SUBMIT_LOADING_MIN_MS = 3000;
+
+function sleep(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function showSubmitLoading() {
+  const overlay = $('#submit-loading-overlay');
+  overlay?.classList.remove('hidden');
+  document.body.classList.add('submit-loading-open');
+}
+
+function hideSubmitLoading() {
+  const overlay = $('#submit-loading-overlay');
+  overlay?.classList.add('hidden');
+  document.body.classList.remove('submit-loading-open');
+}
+
+async function withSubmitLoading(task) {
+  const startedAt = Date.now();
+  showSubmitLoading();
+  try {
+    return await task();
+  } finally {
+    const elapsed = Date.now() - startedAt;
+    const remaining = Math.max(0, SUBMIT_LOADING_MIN_MS - elapsed);
+    if (remaining > 0) await sleep(remaining);
+    hideSubmitLoading();
+  }
+}
+
 function beginServerApply() {
   return ++serverApplySeq;
 }
@@ -4020,27 +4051,33 @@ function setupEventListeners() {
     }
 
     try {
-      tx.location = await captureCurrentLocation();
-    } catch (_) {}
-    enqueueCreate(tx);
-    endMutation();
-    SyncManager.scheduleSync();
-    els.expenseForm.reset();
-    els.expenseDate.value = todayISO();
-    $('#expense-category').value = '餐飲-午餐';
-    syncCategoryPicker($('#expense-category-picker'), '餐飲-午餐');
-    setCategoryPickerOpen(getCategoryPickerWrap('expense-category'), false);
-    $('#expense-custom-category-row').classList.add('hidden');
-    $('#expense-custom-category').value = '';
-    setExpenseEssentials('expense', {
-      currency: 'JPY',
-      payer: 'A',
-      split: 'SPLIT_5050',
-    });
-    updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
-    updateExpenseSplitHint();
-    showToast(`${uiIconHtml('success', 'btn')} 已新增`, 'success');
-    onRecordSyncComplete();
+      await withSubmitLoading(async () => {
+        try {
+          tx.location = await captureCurrentLocation();
+        } catch (_) {}
+        enqueueCreate(tx);
+      });
+
+      els.expenseForm.reset();
+      els.expenseDate.value = todayISO();
+      $('#expense-category').value = '餐飲-午餐';
+      syncCategoryPicker($('#expense-category-picker'), '餐飲-午餐');
+      setCategoryPickerOpen(getCategoryPickerWrap('expense-category'), false);
+      $('#expense-custom-category-row').classList.add('hidden');
+      $('#expense-custom-category').value = '';
+      setExpenseEssentials('expense', {
+        currency: 'JPY',
+        payer: 'A',
+        split: 'SPLIT_5050',
+      });
+      updateMoneyPrefix($('#expense-amount-prefix'), 'JPY');
+      updateExpenseSplitHint();
+      showToast(`${uiIconHtml('success', 'btn')} 已新增`, 'success');
+      SyncManager.scheduleSync();
+      onRecordSyncComplete();
+    } finally {
+      endMutation();
+    }
   });
 
   els.budgetForm.addEventListener('submit', async (e) => {

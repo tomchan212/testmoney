@@ -4471,6 +4471,125 @@ button.currency-label.badge-all.active {
   display: none;
 }
 
+.submit-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  background: rgba(255, 248, 250, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.submit-loading-overlay.hidden {
+  display: none;
+}
+
+.submit-loading-stage {
+  position: relative;
+  width: 9.5rem;
+  height: 9.5rem;
+}
+
+.flying-money-orbit {
+  position: absolute;
+  inset: 0;
+  animation: flying-money-spin 1.15s linear infinite;
+}
+
+.flying-money-icon {
+  position: absolute;
+  width: 2.35rem;
+  height: 2.35rem;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.12));
+}
+
+.flying-money-icon-1 {
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.flying-money-icon-2 {
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+}
+
+.flying-money-icon-3 {
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.flying-money-icon-4 {
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.flying-money-core {
+  position: absolute;
+  inset: 50%;
+  width: 3.4rem;
+  height: 3.4rem;
+  margin: -1.7rem 0 0 -1.7rem;
+  display: grid;
+  place-items: center;
+  animation: flying-money-pulse 1.15s ease-in-out infinite;
+}
+
+.flying-money-core img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.14));
+}
+
+.submit-loading-text {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  letter-spacing: 0.02em;
+}
+
+body.submit-loading-open {
+  overflow: hidden;
+}
+
+@keyframes flying-money-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes flying-money-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+html.theme-cyberpunk .submit-loading-overlay {
+  background: rgba(8, 12, 24, 0.78);
+}
+
+html.theme-cyberpunk .submit-loading-text {
+  color: #f4f7ff;
+}
+
 .sync-banner {
   position: fixed;
   top: calc(env(safe-area-inset-top, 0px) + 0.65rem);

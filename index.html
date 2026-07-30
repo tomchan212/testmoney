@@ -21,6 +21,20 @@
 
   <!-- Overlays must stay outside .app-container so cyberpunk stacking works -->
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="submit-loading-overlay" class="submit-loading-overlay hidden" role="status" aria-live="assertive" aria-label="記錄中">
+    <div class="submit-loading-stage" aria-hidden="true">
+      <div class="flying-money-orbit">
+        <img class="flying-money-icon flying-money-icon-1" src="icons/jpy.png?v=20260730dc" alt="">
+        <img class="flying-money-icon flying-money-icon-2" src="icons/hkd.png?v=20260730dc" alt="">
+        <img class="flying-money-icon flying-money-icon-3" src="icons/savings.png" alt="">
+        <img class="flying-money-icon flying-money-icon-4" src="icons/expense.png" alt="">
+      </div>
+      <div class="flying-money-core">
+        <img src="icons/exchange.png?v=20260730dc" alt="">
+      </div>
+    </div>
+    <p class="submit-loading-text">記錄俾錢中…</p>
+  </div>
   <div id="sync-banner" class="sync-banner hidden" role="status" aria-live="polite" aria-label="同步進度">
     <div class="sync-banner-card">
       <p class="sync-banner-text">☁️ 同步中… <span id="loading-percent">0%</span></p>
@@ -149,7 +163,7 @@
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block">新增消費明細 <img class="ui-icon ui-icon-btn" src="icons/success.png?v=20260730dd" alt="" aria-hidden="true"></button>
+        <button type="submit" class="btn btn-primary btn-block" id="expense-submit-btn">記錄俾錢</button>
       </form>
       </section>
     </div>
