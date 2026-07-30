@@ -125,13 +125,13 @@ const FILTER_CATEGORY_GROUPS = [
 ];
 
 const FILTER_SPLIT_ITEMS = [
-  { value: '', label: '全部', all: true },
-  { value: 'SPLIT_5050', label: '一人一半', split: 'SPLIT_5050' },
+  { value: '', label: '樣嘢點計', all: true },
   { value: 'FOR_A', label: '自己嘅', person: 'A' },
   { value: 'FOR_B', label: '自己嘅', person: 'B' },
-  { value: 'REPAY', label: '還錢', category: '還錢' },
-  { value: 'LOAN', label: '借錢', category: '借錢' },
+  { value: 'SPLIT_5050', label: '一人一半', split: 'SPLIT_5050' },
 ];
+
+const QUICK_SPLIT_CYCLE = ['', 'FOR_A', 'FOR_B', 'SPLIT_5050'];
 
 const SPLIT_ICONS = {
   SPLIT_5050: 'icons/split-half.png?v=20260729cx',
@@ -1020,7 +1020,10 @@ function getFilterCategoryLabel(value) {
 }
 
 function getFilterSplitLabel(value) {
-  return findFilterItem(FILTER_SPLIT_ITEMS, value)?.label || '全部';
+  if (value === 'FOR_A') return '男孩自己嘅';
+  if (value === 'FOR_B') return '女生自己嘅';
+  if (value === 'SPLIT_5050') return '一人一半';
+  return findFilterItem(FILTER_SPLIT_ITEMS, value)?.label || '樣嘢點計';
 }
 
 function setupFilterIconPicker(inputId, itemsOrGroups, onChange) {
@@ -1052,11 +1055,6 @@ function setupFilterIconPicker(inputId, itemsOrGroups, onChange) {
 function setupListFilterPickers(onChange) {
   setupFilterIconPicker('filter-category', FILTER_CATEGORY_GROUPS, (value) => {
     listFilters.category = value;
-    onChange?.();
-  });
-  setupFilterIconPicker('filter-split', FILTER_SPLIT_ITEMS, (value) => {
-    listFilters.splitMode = value;
-    syncQuickFilterChips();
     onChange?.();
   });
 }
@@ -1245,23 +1243,18 @@ function cycleQuickPayerFilter(onChange) {
   onChange();
 }
 
-function syncSplitFilterPicker() {
-  const input = $('#filter-split');
-  if (input) input.value = listFilters.splitMode || '';
-  const wrap = document.querySelector('[data-filter-picker="filter-split"]');
-  if (wrap) syncFilterPicker(wrap, FILTER_SPLIT_ITEMS, listFilters.splitMode || '');
-}
-
-function cycleQuickSplit5050Filter(onChange) {
-  listFilters.splitMode = listFilters.splitMode === 'SPLIT_5050' ? '' : 'SPLIT_5050';
-  syncSplitFilterPicker();
+function cycleQuickSplitFilter(onChange) {
+  const cur = QUICK_SPLIT_CYCLE.includes(listFilters.splitMode)
+    ? listFilters.splitMode
+    : '';
+  const next = QUICK_SPLIT_CYCLE[(QUICK_SPLIT_CYCLE.indexOf(cur) + 1) % QUICK_SPLIT_CYCLE.length];
+  listFilters.splitMode = next;
   syncQuickFilterChips();
   updateFilterActiveSummary();
   onChange();
 }
 
 function syncQuickFilterChips() {
-  const dayScope = getQuickDayScope();
   const dayLabelEl = $('#filter-day-chip-label');
   const dayIconEl = $('#filter-day-chip-icon');
   const dayChip = $('#filter-day-chip');
@@ -1286,12 +1279,14 @@ function syncQuickFilterChips() {
 
   const payer = listFilters.payer || '';
   const payerIconEl = $('#filter-payer-chip-icon');
+  const payerLabelEl = $('#filter-payer-chip-label');
   const payerChip = $('#filter-payer-chip');
   if (payerIconEl) {
     if (payer === 'A') payerIconEl.innerHTML = personImg('A', 'md');
     else if (payer === 'B') payerIconEl.innerHTML = personImg('B', 'md');
     else payerIconEl.innerHTML = uiIconHtml('creditCard', 'md');
   }
+  if (payerLabelEl) payerLabelEl.textContent = '邊個畀';
   payerChip?.classList.toggle('is-active', Boolean(payer));
   payerChip?.setAttribute('aria-pressed', payer ? 'true' : 'false');
   payerChip?.setAttribute(
@@ -1299,33 +1294,48 @@ function syncQuickFilterChips() {
     payer === 'A' ? '邊個畀：男孩' : payer === 'B' ? '邊個畀：女生' : '邊個畀：全部'
   );
 
-  const split5050Active = listFilters.splitMode === 'SPLIT_5050';
-  const splitIconEl = $('#filter-split5050-chip-icon');
-  const splitChip = $('#filter-split5050-chip');
-  if (splitIconEl) {
-    splitIconEl.innerHTML =
-      splitIconHtml('SPLIT_5050', 'md', '一人一半') || uiIconHtml('expense', 'md');
+  const splitMode = QUICK_SPLIT_CYCLE.includes(listFilters.splitMode)
+    ? listFilters.splitMode
+    : '';
+  const splitIconEl = $('#filter-split-chip-icon');
+  const splitLabelEl = $('#filter-split-chip-label');
+  const splitChip = $('#filter-split-chip');
+  if (splitMode === 'FOR_A') {
+    if (splitIconEl) splitIconEl.innerHTML = personImg('A', 'md');
+    if (splitLabelEl) splitLabelEl.textContent = '自己嘅';
+    splitChip?.setAttribute('aria-label', '樣嘢點計：男孩自己嘅');
+  } else if (splitMode === 'FOR_B') {
+    if (splitIconEl) splitIconEl.innerHTML = personImg('B', 'md');
+    if (splitLabelEl) splitLabelEl.textContent = '自己嘅';
+    splitChip?.setAttribute('aria-label', '樣嘢點計：女生自己嘅');
+  } else if (splitMode === 'SPLIT_5050') {
+    if (splitIconEl) {
+      splitIconEl.innerHTML =
+        splitIconHtml('SPLIT_5050', 'md', '一人一半') || uiIconHtml('expense', 'md');
+    }
+    if (splitLabelEl) splitLabelEl.textContent = '一人一半';
+    splitChip?.setAttribute('aria-label', '樣嘢點計：一人一半');
+  } else {
+    if (splitIconEl) splitIconEl.innerHTML = uiIconHtml('expense', 'md');
+    if (splitLabelEl) splitLabelEl.textContent = '樣嘢點計';
+    splitChip?.setAttribute('aria-label', '樣嘢點計：全部');
   }
-  splitChip?.classList.toggle('is-active', split5050Active);
-  splitChip?.setAttribute('aria-pressed', split5050Active ? 'true' : 'false');
-  splitChip?.setAttribute(
-    'aria-label',
-    split5050Active ? '一人一半：已篩選' : '一人一半：全部'
-  );
+  splitChip?.classList.toggle('is-active', Boolean(splitMode));
+  splitChip?.setAttribute('aria-pressed', splitMode ? 'true' : 'false');
 
   const currencyHidden = $('#filter-currency');
   if (currencyHidden) currencyHidden.value = currency;
   const payerHidden = $('#filter-payer');
   if (payerHidden) payerHidden.value = payer;
-  const splitHidden = $('#filter-split5050');
-  if (splitHidden) splitHidden.value = split5050Active ? 'SPLIT_5050' : '';
+  const splitHidden = $('#filter-split');
+  if (splitHidden) splitHidden.value = splitMode;
 }
 
 function setupQuickFilterToggles(onChange) {
   $('#filter-day-chip')?.addEventListener('click', () => cycleQuickDayFilter(onChange));
   $('#filter-currency-chip')?.addEventListener('click', () => cycleQuickCurrencyFilter(onChange));
   $('#filter-payer-chip')?.addEventListener('click', () => cycleQuickPayerFilter(onChange));
-  $('#filter-split5050-chip')?.addEventListener('click', () => cycleQuickSplit5050Filter(onChange));
+  $('#filter-split-chip')?.addEventListener('click', () => cycleQuickSplitFilter(onChange));
   syncQuickFilterChips();
 }
 
@@ -1352,9 +1362,6 @@ function updateFilterActiveSummary() {
   const parts = [];
   if (listFilters.category) {
     parts.push(getFilterCategoryLabel(listFilters.category));
-  }
-  if (listFilters.splitMode) {
-    parts.push(getFilterSplitLabel(listFilters.splitMode));
   }
   if (listFilters.sortAmount === 'asc') parts.push('價錢↑');
   if (listFilters.sortAmount === 'desc') parts.push('價錢↓');
