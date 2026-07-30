@@ -657,14 +657,38 @@ function compactCreamChipHtml(innerHtml, ariaLabel = '') {
   return `<span class="compact-cream-chip"${labelAttr}>${innerHtml}</span>`;
 }
 
+function repayFlowTagHtml(tx, variant = 'tag') {
+  const payee = tx.payer === 'A' ? 'B' : 'A';
+  const payerName = tx.payer === 'A' ? '男孩' : '女生';
+  const payeeName = payee === 'A' ? '男孩' : '女生';
+  const size = variant === 'compact' ? 'xs' : 'inline';
+  return splitFlowComboHtml(
+    personImg(tx.payer, size),
+    personImg(payee, size),
+    variant,
+    `${payerName}還俾${payeeName}`
+  );
+}
+
+function loanFlowTagHtml(tx, variant = 'tag') {
+  const borrower = getLoanBorrower(tx);
+  const payerName = tx.payer === 'A' ? '男孩' : '女生';
+  const borrowerName = borrower === 'A' ? '男孩' : '女生';
+  const size = variant === 'compact' ? 'xs' : 'inline';
+  return splitFlowComboHtml(
+    personImg(tx.payer, size),
+    personImg(borrower, size),
+    variant,
+    `${payerName}借畀${borrowerName}`
+  );
+}
+
 function compactTitleSuffixHtml(tx) {
   if (isLoanTransaction(tx)) {
-    const icon = categoryIconHtml('借錢', 'inline', '借錢') || '';
-    return compactCreamChipHtml(`${icon} 借錢`, '借錢');
+    return `<span class="compact-inline-chip compact-loan-chip" aria-label="借錢">${loanFlowTagHtml(tx, 'compact')}</span>`;
   }
   if (isRepayTransaction(tx)) {
-    const icon = categoryIconHtml('還錢', 'inline', '還錢') || '';
-    return `<span class="compact-inline-chip compact-repay-chip" aria-label="還錢">${icon} 還錢</span>`;
+    return `<span class="compact-inline-chip compact-repay-chip" aria-label="還錢">${repayFlowTagHtml(tx, 'compact')}</span>`;
   }
   if (usesCombinedSplitTag(tx)) {
     return combinedSplitTagHtml(tx, 'compact');
@@ -764,10 +788,16 @@ function buildTransactionItemHtml(tx) {
 
 function splitTagHtml(tx) {
   if (isRepayTransaction(tx)) {
-    return `${categoryIconHtml('還錢', 'inline', '還錢')} 還錢`;
+    const payee = tx.payer === 'A' ? 'B' : 'A';
+    const payerName = tx.payer === 'A' ? '男孩' : '女生';
+    const payeeName = payee === 'A' ? '男孩' : '女生';
+    return `<span class="detail-split-help" aria-label="${payerName}還俾${payeeName}">${personImg(tx.payer, 'inline')} 還俾 ${personImg(payee, 'inline')}</span>`;
   }
   if (isLoanTransaction(tx)) {
-    return `${categoryIconHtml('借錢', 'inline', '借錢')} 借錢`;
+    const borrower = getLoanBorrower(tx);
+    const payerName = tx.payer === 'A' ? '男孩' : '女生';
+    const borrowerName = borrower === 'A' ? '男孩' : '女生';
+    return `<span class="detail-split-help" aria-label="${payerName}借畀${borrowerName}">${personImg(tx.payer, 'inline')} 借畀 ${personImg(borrower, 'inline')}</span>`;
   }
   if (isHelpPaySplit(tx)) {
     const beneficiary = getSplitBeneficiary(tx);

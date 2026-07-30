@@ -2812,6 +2812,17 @@ button.currency-label.badge-all.active {
   color: #3a6ea5;
 }
 
+.tx-record-split .compact-loan-chip {
+  background: #f3eefc;
+  color: #6b4ea3;
+}
+
+.tx-record-split .compact-repay-chip .split-flow-combo,
+.tx-record-split .compact-loan-chip .split-flow-combo {
+  background: transparent;
+  padding: 0;
+}
+
 .tx-record-split .split-flow-arrow {
   font-size: 0.62rem;
   color: #a8927a;
@@ -3979,13 +3990,36 @@ button.currency-label.badge-all.active {
 }
 
 .modal-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  min-width: 2.1rem;
+  min-height: 2.1rem;
+  padding: 0;
+  border: 1.5px solid rgba(255, 117, 140, 0.55);
+  border-radius: 999px;
+  background: #fff5f7;
+  box-shadow: 0 1px 4px rgba(255, 117, 140, 0.18);
+  font-size: 1.35rem;
   line-height: 1;
   cursor: pointer;
-  color: var(--text-muted);
-  padding: 0.25rem;
+  color: #c45a72;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.modal-close:hover,
+.modal-close:focus-visible {
+  background: #ffe4eb;
+  border-color: var(--pink-start);
+  color: #a63d57;
+  outline: none;
+}
+
+.modal-close:active {
+  transform: scale(0.96);
 }
 
 .modal-content-detail {
@@ -5153,6 +5187,12 @@ html.theme-cyberpunk .tx-record-split .compact-repay-chip {
   color: #9af7ff;
 }
 
+html.theme-cyberpunk .list-card.list-compact .tx-record-split .compact-loan-chip,
+html.theme-cyberpunk .tx-record-split .compact-loan-chip {
+  background: rgba(180, 120, 255, 0.14) !important;
+  color: #d2b4ff;
+}
+
 html.theme-cyberpunk .list-card.list-compact .tx-record-split .split-flow-arrow,
 html.theme-cyberpunk .tx-record-split .split-flow-arrow {
   color: rgba(255, 232, 194, 0.75);
@@ -5198,7 +5238,16 @@ html.theme-cyberpunk .modal-content {
 
 html.theme-cyberpunk .modal-close {
   color: #9af7ff;
-  background: transparent;
+  background: rgba(0, 246, 255, 0.08);
+  border: 1.5px solid rgba(0, 246, 255, 0.45);
+  box-shadow: 0 0 12px rgba(0, 246, 255, 0.15);
+}
+
+html.theme-cyberpunk .modal-close:hover,
+html.theme-cyberpunk .modal-close:focus-visible {
+  background: rgba(0, 246, 255, 0.16);
+  border-color: rgba(0, 246, 255, 0.7);
+  color: #d7fcff;
 }
 
 html.theme-cyberpunk .explain-step-btn,
