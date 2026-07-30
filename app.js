@@ -274,6 +274,7 @@ const els = {
   repayModal: $('#repay-modal'),
   loanModal: $('#loan-modal'),
   deleteConfirmModal: $('#delete-confirm-modal'),
+  dayRangeModal: $('#day-range-modal'),
 };
 
 /* ===== Utilities ===== */
@@ -1240,23 +1241,50 @@ function formatDayRangeLabel() {
   return '';
 }
 
-function syncDayRangeInputs() {
-  const fromInput = $('#filter-day-from');
-  const toInput = $('#filter-day-to');
-  if (fromInput) {
-    fromInput.value = listFilters.dayFrom;
-    fromInput.max = listFilters.dayTo || '';
-  }
-  if (toInput) {
-    toInput.value = listFilters.dayTo;
-    toInput.min = listFilters.dayFrom || '';
-  }
+function formatDayRangeChipLabel(from, to) {
+  if (!from && !to) return '全部';
+  const today = todayISO();
+  if (from === today && to === today) return '今日';
+  if (from && to && from === to) return formatShortDayLabel(from);
+  if (from && to) return `${formatShortDayLabel(from)}～${formatShortDayLabel(to)}`;
+  if (from) return `${formatShortDayLabel(from)}起`;
+  if (to) return `至${formatShortDayLabel(to)}`;
+  return '自定範圍';
 }
+
+function formatShortDayLabel(iso) {
+  if (!iso || iso.length < 10) return iso || '';
+  return `${Number(iso.slice(5, 7))}/${Number(iso.slice(8, 10))}`;
+}
+
+function parseISODateParts(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return { y: Number(m[1]), m: Number(m[2]), d: Number(m[3]) };
+}
+
+function isoFromParts(y, m, d) {
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+function daysInMonth(y, m) {
+  return new Date(y, m, 0).getDate();
+}
+
+const dayRangePickerState = {
+  viewYear: 0,
+  viewMonth: 0, // 1-12
+  anchor: null,
+  onChange: null,
+};
 
 function initListDayFilter() {
   listFilters.dayFrom = '';
   listFilters.dayTo = '';
-  syncDayRangeInputs();
+  const today = parseISODateParts(todayISO());
+  dayRangePickerState.viewYear = today?.y || new Date().getFullYear();
+  dayRangePickerState.viewMonth = today?.m || new Date().getMonth() + 1;
+  dayRangePickerState.anchor = null;
   updateDayScopeToggle();
 }
 
@@ -1272,18 +1300,145 @@ function getQuickDayValueLabel() {
   const scope = getQuickDayScope();
   if (scope === 'all') return '全部';
   if (scope === 'today') return '今日';
-  return '自定範圍';
+  return formatDayRangeChipLabel(listFilters.dayFrom, listFilters.dayTo);
 }
 
-function cycleQuickDayFilter(onChange) {
-  const scope = getQuickDayScope();
-  if (scope === 'all') {
-    setDayFilter(todayISO());
-  } else {
-    setDayRange('', '');
-  }
+function openDayRangePicker() {
+  const seed = listFilters.dayFrom || listFilters.dayTo || todayISO();
+  const parts = parseISODateParts(seed) || parseISODateParts(todayISO());
+  dayRangePickerState.viewYear = parts.y;
+  dayRangePickerState.viewMonth = parts.m;
+  dayRangePickerState.anchor = null;
+  renderDayRangePicker();
+  openModal(els.dayRangeModal);
+}
+
+function closeDayRangePicker() {
+  dayRangePickerState.anchor = null;
+  closeModal(els.dayRangeModal);
+}
+
+function applyDayRangeSelection(from, to, { close = true } = {}) {
+  setDayRange(from, to);
   syncQuickFilterChips();
-  onChange();
+  dayRangePickerState.onChange?.();
+  if (close) closeDayRangePicker();
+  else renderDayRangePicker();
+}
+
+function updateDayRangeStatus() {
+  const status = $('#day-range-status');
+  if (!status) return;
+  const anchor = dayRangePickerState.anchor;
+  if (anchor) {
+    status.textContent = `開始：${anchor}｜再撳結束日`;
+    return;
+  }
+  const label = formatDayRangeLabel();
+  status.textContent = label
+    ? `目前：${label}｜撳兩下揀新範圍`
+    : '先撳開始日，再撳結束日';
+}
+
+function renderDayRangePicker() {
+  const { viewYear: y, viewMonth: m, anchor } = dayRangePickerState;
+  const monthLabel = $('#day-range-month-label');
+  if (monthLabel) monthLabel.textContent = `${y}年${m}月`;
+
+  const from = anchor || listFilters.dayFrom || '';
+  const to = anchor ? '' : listFilters.dayTo || '';
+  const draftFrom = from && to ? (from <= to ? from : to) : from;
+  const draftTo = from && to ? (from <= to ? to : from) : '';
+
+  $$('.day-range-quick-btn').forEach((btn) => {
+    const quick = btn.dataset.dayQuick;
+    const scope = getQuickDayScope();
+    const active =
+      !anchor &&
+      ((quick === 'all' && scope === 'all') || (quick === 'today' && scope === 'today'));
+    btn.classList.toggle('is-active', active);
+  });
+
+  const cal = $('#day-range-calendar');
+  if (!cal) return;
+  const firstWeekday = new Date(y, m - 1, 1).getDay();
+  const totalDays = daysInMonth(y, m);
+  const today = todayISO();
+  const cells = [];
+
+  for (let i = 0; i < firstWeekday; i += 1) {
+    cells.push('<span class="day-range-day is-empty" aria-hidden="true"></span>');
+  }
+
+  for (let d = 1; d <= totalDays; d += 1) {
+    const iso = isoFromParts(y, m, d);
+    const classes = ['day-range-day'];
+    if (iso === today) classes.push('is-today');
+    if (anchor === iso) classes.push('is-anchor', 'is-selected');
+    if (draftFrom && draftTo && iso >= draftFrom && iso <= draftTo) classes.push('is-in-range');
+    if (draftFrom && iso === draftFrom) classes.push('is-selected', 'is-range-start');
+    if (draftTo && iso === draftTo) classes.push('is-selected', 'is-range-end');
+    if (draftFrom && !draftTo && iso === draftFrom) classes.push('is-selected');
+    cells.push(
+      `<button type="button" class="${classes.join(' ')}" data-day="${iso}" aria-label="${iso}">${d}</button>`
+    );
+  }
+
+  cal.innerHTML = cells.join('');
+  updateDayRangeStatus();
+}
+
+function handleDayRangeDayClick(iso) {
+  if (!iso) return;
+  if (!dayRangePickerState.anchor) {
+    dayRangePickerState.anchor = iso;
+    renderDayRangePicker();
+    return;
+  }
+  const start = dayRangePickerState.anchor;
+  dayRangePickerState.anchor = null;
+  applyDayRangeSelection(start, iso, { close: true });
+}
+
+function setupDayRangePicker(onChange) {
+  dayRangePickerState.onChange = onChange;
+  $$('[data-close-day-range]').forEach((el) => {
+    el.addEventListener('click', closeDayRangePicker);
+  });
+  $('#day-range-prev-month')?.addEventListener('click', () => {
+    let { viewYear: y, viewMonth: m } = dayRangePickerState;
+    m -= 1;
+    if (m < 1) {
+      m = 12;
+      y -= 1;
+    }
+    dayRangePickerState.viewYear = y;
+    dayRangePickerState.viewMonth = m;
+    renderDayRangePicker();
+  });
+  $('#day-range-next-month')?.addEventListener('click', () => {
+    let { viewYear: y, viewMonth: m } = dayRangePickerState;
+    m += 1;
+    if (m > 12) {
+      m = 1;
+      y += 1;
+    }
+    dayRangePickerState.viewYear = y;
+    dayRangePickerState.viewMonth = m;
+    renderDayRangePicker();
+  });
+  $$('.day-range-quick-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const quick = btn.dataset.dayQuick;
+      if (quick === 'today') applyDayRangeSelection(todayISO(), todayISO(), { close: true });
+      else applyDayRangeSelection('', '', { close: true });
+    });
+  });
+  $('#day-range-calendar')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-day]');
+    if (!btn || !els.dayRangeModal?.contains(btn)) return;
+    handleDayRangeDayClick(btn.dataset.day);
+  });
 }
 
 function cycleQuickCurrencyFilter(onChange) {
@@ -1393,7 +1548,7 @@ function syncQuickFilterChips() {
 }
 
 function setupQuickFilterToggles(onChange) {
-  $('#filter-day-chip')?.addEventListener('click', () => cycleQuickDayFilter(onChange));
+  $('#filter-day-chip')?.addEventListener('click', () => openDayRangePicker());
   $('#filter-currency-chip')?.addEventListener('click', () => cycleQuickCurrencyFilter(onChange));
   $('#filter-payer-chip')?.addEventListener('click', () => cycleQuickPayerFilter(onChange));
   $('#filter-split-chip')?.addEventListener('click', () => cycleQuickSplitFilter(onChange));
@@ -1402,21 +1557,6 @@ function setupQuickFilterToggles(onChange) {
 
 function updateDayScopeToggle() {
   syncQuickFilterChips();
-  syncFilterDatePanel();
-}
-
-function syncFilterDatePanel() {
-  const panel = $('#filter-panel-date');
-  if (!panel) return;
-  const summary = panel.querySelector('summary');
-  if (hasDayRangeFilter()) {
-    const today = todayISO();
-    const isTodayOnly = listFilters.dayFrom === today && listFilters.dayTo === today;
-    if (!isTodayOnly) panel.open = true;
-    if (summary) summary.innerHTML = `${uiIconHtml('date', 'label')} ${escapeHtml(formatDayRangeLabel())}`;
-  } else if (summary) {
-    summary.innerHTML = `${uiIconHtml('date', 'label')} 自訂日期範圍`;
-  }
 }
 
 function updateFilterActiveSummary() {
@@ -1473,7 +1613,6 @@ function setDayRange(from, to) {
   }
   listFilters.dayFrom = dayFrom;
   listFilters.dayTo = dayTo;
-  syncDayRangeInputs();
   updateDayScopeToggle();
 }
 
@@ -1893,6 +2032,7 @@ function isModalOpen() {
     !els.repayModal.classList.contains('hidden') ||
     (els.loanModal && !els.loanModal.classList.contains('hidden')) ||
     !els.deleteConfirmModal.classList.contains('hidden') ||
+    (els.dayRangeModal && !els.dayRangeModal.classList.contains('hidden')) ||
     !$('#sheet-switcher-modal').classList.contains('hidden');
 }
 
@@ -3906,19 +4046,12 @@ function setupListFilters() {
   $('#settlement-explain-details')?.addEventListener('toggle', updateExplainPreview);
 
   setupQuickFilterToggles(resetPage);
+  setupDayRangePicker(resetPage);
 
   $('#filter-sort-amount').addEventListener('change', (e) => {
     listFilters.sortAmount = e.target.value;
     resetPage();
   });
-
-  const onDayRangeChange = () => {
-    setDayRange($('#filter-day-from')?.value || '', $('#filter-day-to')?.value || '');
-    syncQuickFilterChips();
-    resetPage();
-  };
-  $('#filter-day-from').addEventListener('change', onDayRangeChange);
-  $('#filter-day-to').addEventListener('change', onDayRangeChange);
 
   $('#filter-sort-date').addEventListener('change', (e) => {
     listFilters.sortDate = e.target.value;
@@ -4043,6 +4176,7 @@ function setupEventListeners() {
       closeModal(els.repayModal);
       closeModal(els.loanModal);
       closeModal(els.deleteConfirmModal);
+      closeModal(els.dayRangeModal);
       closeModal($('#sheet-switcher-modal'));
     });
   });

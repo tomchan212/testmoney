@@ -323,23 +323,6 @@
             </div>
           </div>
 
-          <details class="filter-panel" id="filter-panel-date">
-            <summary><img class="ui-icon ui-icon-sm" src="icons/date.png" alt="" aria-hidden="true"> 自訂日期範圍</summary>
-            <div class="filter-panel-body filter-day-range-panel">
-              <div class="filter-item filter-item-icon-field">
-                <span class="sr-only">自訂日期範圍</span>
-                <div class="form-icon-field">
-                  <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/date.png" alt=""></span>
-                  <div class="filter-day-range">
-                    <input type="date" id="filter-day-from" aria-label="開始日期">
-                    <span class="day-range-sep" aria-hidden="true">至</span>
-                    <input type="date" id="filter-day-to" aria-label="結束日期">
-                  </div>
-                </div>
-              </div>
-            </div>
-          </details>
-
           <details class="filter-panel" id="filter-panel-advanced">
             <summary>
               <span class="filter-panel-title">分類 · 排序</span>
@@ -755,6 +738,31 @@
         </div>
       </div>
       <ul id="person-spend-list" class="person-spend-list" aria-label="個人用左明細"></ul>
+    </div>
+  </div>
+
+  <!-- Day Range Picker Modal -->
+  <div id="day-range-modal" class="modal hidden" role="dialog" aria-labelledby="day-range-modal-title" aria-modal="true">
+    <div class="modal-backdrop" data-close-day-range></div>
+    <div class="modal-content modal-content-day-range">
+      <div class="modal-header">
+        <h3 id="day-range-modal-title"><img class="ui-icon ui-icon-title" src="icons/date.png" alt="" aria-hidden="true"> 揀日期範圍</h3>
+        <button type="button" class="modal-close" data-close-day-range aria-label="關閉">&times;</button>
+      </div>
+      <div class="day-range-quick" role="group" aria-label="快速篩選">
+        <button type="button" class="day-range-quick-btn" data-day-quick="all">全部</button>
+        <button type="button" class="day-range-quick-btn" data-day-quick="today">今日</button>
+      </div>
+      <p class="day-range-status" id="day-range-status" aria-live="polite">先撳開始日，再撳結束日</p>
+      <div class="day-range-cal-nav">
+        <button type="button" class="day-range-nav-btn" id="day-range-prev-month" aria-label="上個月">‹</button>
+        <div class="day-range-month-label" id="day-range-month-label"></div>
+        <button type="button" class="day-range-nav-btn" id="day-range-next-month" aria-label="下個月">›</button>
+      </div>
+      <div class="day-range-weekdays" aria-hidden="true">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div id="day-range-calendar" class="day-range-calendar" role="grid" aria-label="日期日曆"></div>
     </div>
   </div>
 
