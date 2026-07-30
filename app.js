@@ -2810,26 +2810,31 @@ function openDetailModal(key) {
   const isOpen = !els.detailModal.classList.contains('hidden');
   if (isOpen && detailModalKey && detailModalKey !== key) {
     detailModalStack.push(detailModalKey);
+    showDetailContent(key);
+    pushAppHistory('detail-nested');
   } else if (!isOpen) {
     detailModalStack = [];
+    showDetailContent(key);
+  } else {
+    showDetailContent(key);
   }
-  showDetailContent(key);
 }
 
-function dismissDetailModal() {
+function dismissDetailModal(options = {}) {
   detailModalStack = [];
   detailModalKey = null;
-  closeModal(els.detailModal);
+  closeModal(els.detailModal, options);
 }
 
 /** 有上一層詳情就返回；否則關閉 modal */
-function closeDetailModal() {
+function closeDetailModal(options = {}) {
   if (detailModalStack.length) {
     const prevKey = detailModalStack.pop();
     showDetailContent(prevKey);
+    if (!options.fromPopstate) syncHistoryOnManualClose();
     return;
   }
-  dismissDetailModal();
+  dismissDetailModal(options);
 }
 
 function bindDetailTriggers(container) {
@@ -3401,8 +3406,8 @@ function openPersonSpendModal(person, currency) {
   openModal(els.personSpendModal);
 }
 
-function closePersonSpendModal() {
-  closeModal(els.personSpendModal);
+function closePersonSpendModal(options = {}) {
+  closeModal(els.personSpendModal, options);
   personSpendView.person = null;
   personSpendView.currency = null;
 }
@@ -3527,20 +3532,178 @@ function updateExpenseSplitHint() {
 /* ===== Modals ===== */
 const MODAL_BASE_Z = 1000;
 
-function openModal(modal) {
+/* ===== Edge swipe / history back ===== */
+const EDGE_SWIPE_ZONE_PX = 28;
+const EDGE_SWIPE_TRIGGER_DX = 72;
+const EDGE_SWIPE_MAX_DY_RATIO = 0.85;
+
+let appHistoryDepth = 0;
+let historyCloseLock = false;
+let edgeSwipeState = null;
+
+function pushAppHistory(label = 'view') {
+  try {
+    appHistoryDepth += 1;
+    history.pushState({ appBack: true, label, depth: appHistoryDepth }, '');
+  } catch (_) {
+    appHistoryDepth = Math.max(0, appHistoryDepth - 1);
+  }
+}
+
+function syncHistoryOnManualClose() {
+  if (historyCloseLock || appHistoryDepth <= 0) return;
+  historyCloseLock = true;
+  appHistoryDepth -= 1;
+  try {
+    history.back();
+  } catch (_) {
+    historyCloseLock = false;
+  }
+}
+
+function getTopVisibleModal() {
+  const modals = [...document.querySelectorAll('.modal')].filter(
+    (modal) => !modal.classList.contains('hidden')
+  );
+  if (!modals.length) return null;
+  return modals.sort(
+    (a, b) => (Number.parseInt(b.style.zIndex, 10) || 0) - (Number.parseInt(a.style.zIndex, 10) || 0)
+  )[0];
+}
+
+function closeOpenCategoryPicker() {
+  const openPicker = document.querySelector('.category-picker-wrap .category-picker:not(.hidden)');
+  if (!openPicker) return false;
+  const wrap = openPicker.closest('.category-picker-wrap');
+  if (wrap) setCategoryPickerOpen(wrap, false);
+  return true;
+}
+
+/** 返回上一層畫面：關閉頂層 modal／詳情，或由紀錄／總覽返主頁。 */
+function performNavigateBack() {
+  if (!$('#submit-loading-overlay')?.classList.contains('hidden')) return false;
+  if (closeOpenCategoryPicker()) return true;
+
+  const top = getTopVisibleModal();
+  if (top) {
+    if (top.id === 'detail-modal') {
+      closeDetailModal({ fromPopstate: true });
+      return true;
+    }
+    if (top.id === 'person-spend-modal') {
+      closePersonSpendModal({ fromPopstate: true });
+      return true;
+    }
+    if (top.id === 'delete-confirm-modal') {
+      deleteConfirmMode = 'delete-one';
+      setDeleteConfirmButtonLabel('delete-one');
+      closeModal(top, { fromPopstate: true });
+      return true;
+    }
+    closeModal(top, { fromPopstate: true });
+    return true;
+  }
+
+  const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab || 'form';
+  if (activeTab !== 'form') {
+    switchTab('form', { fromPopstate: true });
+    return true;
+  }
+  return false;
+}
+
+function handleEdgeSwipeBack() {
+  if (!performNavigateBack()) return false;
+  syncHistoryOnManualClose();
+  return true;
+}
+
+function setEdgeSwipeHint(dx = 0, active = false) {
+  const hint = $('#edge-swipe-back-hint');
+  if (!hint) return;
+  const progress = Math.max(0, Math.min(1, dx / 140));
+  hint.classList.toggle('is-active', active);
+  hint.style.setProperty('--edge-swipe-progress', String(progress));
+  hint.style.transform = active ? `translate3d(${Math.min(dx, 120) * 0.35}px, -50%, 0)` : '';
+}
+
+function setupEdgeSwipeBack() {
+  window.addEventListener('popstate', () => {
+    if (historyCloseLock) {
+      historyCloseLock = false;
+      return;
+    }
+    if (appHistoryDepth > 0) appHistoryDepth -= 1;
+    performNavigateBack();
+  });
+
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    if (touch.clientX > EDGE_SWIPE_ZONE_PX) {
+      edgeSwipeState = null;
+      return;
+    }
+    edgeSwipeState = {
+      id: touch.identifier,
+      x: touch.clientX,
+      y: touch.clientY,
+      armed: true,
+      triggered: false,
+    };
+  };
+
+  const onTouchMove = (e) => {
+    if (!edgeSwipeState?.armed || edgeSwipeState.triggered) return;
+    const touch = [...e.touches].find((t) => t.identifier === edgeSwipeState.id);
+    if (!touch) return;
+    const dx = touch.clientX - edgeSwipeState.x;
+    const dy = Math.abs(touch.clientY - edgeSwipeState.y);
+    if (dx < 8) return;
+    if (dy > dx * EDGE_SWIPE_MAX_DY_RATIO) {
+      edgeSwipeState.armed = false;
+      setEdgeSwipeHint(0, false);
+      return;
+    }
+    setEdgeSwipeHint(dx, true);
+    if (dx >= EDGE_SWIPE_TRIGGER_DX) {
+      edgeSwipeState.triggered = true;
+      edgeSwipeState.armed = false;
+      setEdgeSwipeHint(0, false);
+      handleEdgeSwipeBack();
+    }
+  };
+
+  const onTouchEnd = () => {
+    edgeSwipeState = null;
+    setEdgeSwipeHint(0, false);
+  };
+
+  document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+  document.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
+  document.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
+  document.addEventListener('touchcancel', onTouchEnd, { passive: true, capture: true });
+}
+
+function openModal(modal, options = {}) {
   if (!modal) return;
+  const wasHidden = modal.classList.contains('hidden');
   openModalCount += 1;
   modal.style.zIndex = String(MODAL_BASE_Z + openModalCount * 10);
   modal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+  if (wasHidden && options.pushHistory !== false) {
+    pushAppHistory(modal.id || 'modal');
+  }
 }
 
-function closeModal(modal) {
-  if (!modal) return;
+function closeModal(modal, options = {}) {
+  if (!modal || modal.classList.contains('hidden')) return;
   modal.classList.add('hidden');
   modal.style.zIndex = '';
   openModalCount = Math.max(0, openModalCount - 1);
   if (openModalCount === 0) document.body.style.overflow = '';
+  if (!options.fromPopstate) syncHistoryOnManualClose();
 }
 
 function setDeleteConfirmButtonLabel(mode) {
@@ -3816,7 +3979,8 @@ function setupListFilters() {
   updateFilterActiveSummary();
 }
 
-function switchTab(tabName) {
+function switchTab(tabName, options = {}) {
+  const current = document.querySelector('.tab-btn.active')?.dataset.tab || 'form';
   $$('.tab-btn').forEach((btn) => {
     const isActive = btn.dataset.tab === tabName;
     btn.classList.toggle('active', isActive);
@@ -3825,6 +3989,12 @@ function switchTab(tabName) {
   $$('.tab-panel').forEach((panel) => {
     panel.classList.toggle('active', panel.id === `tab-${tabName}`);
   });
+  if (options.fromPopstate || current === tabName) return;
+  if (current === 'form' && tabName !== 'form') {
+    pushAppHistory(`tab-${tabName}`);
+  } else if (current !== 'form' && tabName === 'form') {
+    syncHistoryOnManualClose();
+  }
 }
 
 /** After a record mutation sync finishes, jump to 明細 and show the latest list. */
@@ -4322,6 +4492,7 @@ async function init() {
   setupParticleEffects();
   setupThemeToggle();
   setupIconTapFeedback();
+  setupEdgeSwipeBack();
 
   OfflineQueue.init(apiEndpointKey);
   SyncManager.init({
