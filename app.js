@@ -702,6 +702,7 @@ function buildTransactionItemHtml(tx) {
   const specialClass = isRepay ? ' repay-item' : isLoan ? ' loan-item' : '';
   const title = getTransactionTitle(tx);
   const iconHtml = transactionIconHtml(tx, 'list');
+  const splitBadgeHtml = listRecordSplitIconHtml(tx);
 
   return `
     <li class="transaction-item${specialClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(title)} 詳情">
@@ -711,11 +712,11 @@ function buildTransactionItemHtml(tx) {
         <span class="tx-record-time">${escapeHtml(formatListRecordTime(tx))}</span>
         <span class="tx-record-desc-group">
           <span class="tx-record-desc">${escapeHtml(title)}</span>
+          <span class="tx-record-split">${splitBadgeHtml}</span>
           ${buildTransactionLocationInlineHtml(tx)}
         </span>
       </div>
       <div class="tx-record-secondary">
-        <span class="tx-record-split">${listRecordSplitIconHtml(tx)}</span>
         <span class="tx-record-amount">
           <span class="tx-currency ${curClass}">${tx.currency}</span>
           <span class="tx-amount ${curClass}">${formatMoney(tx.amount, tx.currency)}</span>
