@@ -10,7 +10,6 @@ const SyncManager = (function () {
   let isSyncing = false;
   let scheduleTimer = null;
   let retryTimer = null;
-  let intervalId = null;
   let online = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
   function init(h) {
@@ -18,7 +17,6 @@ const SyncManager = (function () {
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
     OfflineQueue.onChange(() => refreshStatus());
-    startInterval();
     refreshStatus();
   }
 
@@ -149,14 +147,6 @@ const SyncManager = (function () {
       isSyncing = false;
       refreshStatus();
     }
-  }
-
-  function startInterval() {
-    if (intervalId) clearInterval(intervalId);
-    intervalId = setInterval(() => {
-      if (hooks.isSyncBlocked && hooks.isSyncBlocked()) return;
-      scheduleSync();
-    }, hooks.syncIntervalMs || 30000);
   }
 
   return {

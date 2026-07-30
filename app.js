@@ -198,7 +198,6 @@ const DEFAULT_BUDGETS = {
   B: { JPY: 150000, HKD: 5000 },
 };
 
-const SYNC_INTERVAL_MS = 30000;
 const API_TIMEOUT_MS = 55000;
 const API_MAX_RETRIES = 1;
 
@@ -216,7 +215,6 @@ let transactions = [];
 let budgets = structuredClone(DEFAULT_BUDGETS);
 let summary = null;
 let toastTimer = null;
-let syncTimer = null;
 let isMutating = false;
 let loadingCount = 0;
 let loadingHideTimer = null;
@@ -1774,7 +1772,6 @@ async function switchApiEndpoint(targetKey) {
 
   try {
     await fetchAllData();
-    startAutoSync();
     SyncManager.scheduleSync();
   } catch (err) {
     if (OfflineQueue.size() > 0) {
@@ -2194,20 +2191,6 @@ async function syncClearAllTransactions() {
   return apiRequest({
     action: 'clearTransactions',
   });
-}
-
-function startAutoSync() {
-  if (syncTimer) clearInterval(syncTimer);
-  syncTimer = setInterval(async () => {
-    if (isMutating || isModalOpen()) return;
-    if (typeof OfflineQueue !== 'undefined' && OfflineQueue.size() > 0) {
-      SyncManager.scheduleSync();
-      return;
-    }
-    try {
-      await fetchAllData({ silent: true });
-    } catch (_) {}
-  }, SYNC_INTERVAL_MS);
 }
 
 /* ===== Calculations ===== */
@@ -4228,7 +4211,6 @@ async function init() {
 
   OfflineQueue.init(apiEndpointKey);
   SyncManager.init({
-    syncIntervalMs: SYNC_INTERVAL_MS,
     beginServerApply,
     applyServerDataWithQueue,
     syncAddTransaction,
@@ -4242,7 +4224,6 @@ async function init() {
 
   try {
     await fetchAllData();
-    startAutoSync();
     SyncManager.scheduleSync();
   } catch (err) {
     console.error('fetchAllData failed:', err);
@@ -4253,7 +4234,6 @@ async function init() {
       showToast(formatApiError(err), 'error');
     }
     renderAll();
-    startAutoSync();
     SyncManager.scheduleSync();
   }
   updateMutationControls();
