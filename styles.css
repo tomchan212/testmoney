@@ -5187,6 +5187,12 @@ html.theme-cyberpunk .tx-record-split .compact-repay-chip {
   color: #9af7ff;
 }
 
+html.theme-cyberpunk .list-card.list-compact .tx-record-split .compact-loan-chip,
+html.theme-cyberpunk .tx-record-split .compact-loan-chip {
+  background: rgba(180, 120, 255, 0.14) !important;
+  color: #d2b4ff;
+}
+
 html.theme-cyberpunk .list-card.list-compact .tx-record-split .split-flow-arrow,
 html.theme-cyberpunk .tx-record-split .split-flow-arrow {
   color: rgba(255, 232, 194, 0.75);
