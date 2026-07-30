@@ -58,20 +58,136 @@ const CATEGORY_EMOJI = {
   借錢: '💸',
 };
 
+const CATEGORY_ICONS = {
+  餐飲: 'icons/meal.png',
+  '餐飲-早餐': 'icons/breakfast.png',
+  '餐飲-午餐': 'icons/lunch.png',
+  '餐飲-晚餐': 'icons/dinner.png',
+  交通: 'icons/transport.png',
+  住宿: 'icons/hotel.png',
+  購物: 'icons/shopping.png',
+  景點: 'icons/ticket.png',
+  便利店: 'icons/convenience.png',
+  雜項: 'icons/misc.png',
+  還錢: 'icons/repayment.png',
+  借錢: 'icons/expense.png',
+};
+
 const PREDEFINED_CATEGORIES = Object.keys(CATEGORY_EMOJI);
 const CUSTOM_CATEGORY = '__custom__';
 
-const PERSON_EMOJI = {
-  A: '👦🏻',
-  B: '👩🏻',
+const CATEGORY_PICKER_GROUPS = [
+  {
+    label: '餐飲',
+    items: [
+      { value: '餐飲', label: '餐飲' },
+      { value: '餐飲-早餐', label: '早餐' },
+      { value: '餐飲-午餐', label: '午餐' },
+      { value: '餐飲-晚餐', label: '晚餐' },
+    ],
+  },
+  {
+    items: [
+      { value: '交通', label: '交通' },
+      { value: '住宿', label: '住宿' },
+      { value: '購物', label: '購物' },
+      { value: '景點', label: '景點' },
+      { value: '便利店', label: '便利店' },
+      { value: '雜項', label: '雜項' },
+      { value: CUSTOM_CATEGORY, label: '自定', custom: true },
+    ],
+  },
+];
+
+const FILTER_CATEGORY_GROUPS = [
+  {
+    items: [
+      { value: '', label: '全部', all: true },
+      { value: '餐飲', label: '餐飲' },
+      { value: '餐飲-早餐', label: '早餐' },
+      { value: '餐飲-午餐', label: '午餐' },
+      { value: '餐飲-晚餐', label: '晚餐' },
+    ],
+  },
+  {
+    items: [
+      { value: '交通', label: '交通' },
+      { value: '住宿', label: '住宿' },
+      { value: '購物', label: '購物' },
+      { value: '景點', label: '景點' },
+      { value: '便利店', label: '便利店' },
+      { value: '雜項', label: '雜項' },
+      { value: '還錢', label: '還錢' },
+      { value: '借錢', label: '借錢' },
+      { value: CUSTOM_CATEGORY, label: '自定', custom: true },
+    ],
+  },
+];
+
+const FILTER_SPLIT_ITEMS = [
+  { value: '', label: '全部', all: true },
+  { value: 'SPLIT_5050', label: '一人一半', split: 'SPLIT_5050' },
+  { value: 'FOR_A', label: '自己嘅', person: 'A' },
+  { value: 'FOR_B', label: '自己嘅', person: 'B' },
+  { value: 'REPAY', label: '還錢', category: '還錢' },
+  { value: 'LOAN', label: '借錢', category: '借錢' },
+];
+
+const SPLIT_ICONS = {
+  SPLIT_5050: 'icons/split-half.png?v=20260729cx',
 };
 
+const UI_ICON_CACHE = '20260730ds';
+
+const UI_ICONS = {
+  creditCard: 'icons/credit-card.png',
+  savings: 'icons/savings.png',
+  expense: 'icons/expense.png',
+  budget: 'icons/budget.png',
+  date: 'icons/date.png',
+  tag: 'icons/tag.png',
+  notes: 'icons/notes.png',
+  exchange: 'icons/exchange.png',
+  jpy: 'icons/jpy.png',
+  hkd: 'icons/hkd.png',
+  edit: 'icons/edit.png',
+  detail: 'icons/detail.png',
+  delete: 'icons/delete.png',
+  save: 'icons/save.png',
+  confirm: 'icons/confirm.png',
+  success: 'icons/success.png',
+  theme: 'icons/theme.png',
+  empty: 'icons/empty.png',
+  sortTime: 'icons/sort-time.png',
+  list: 'icons/list.png',
+  helpPay: 'icons/help-pay.png',
+  addRecord: 'icons/add-record.png',
+};
+
+const PERSON = {
+  A: { src: 'boy.png', label: '男孩' },
+  B: { src: 'girl.png', label: '女生' },
+};
+
+function personName(person) {
+  return (PERSON[person] || PERSON.A).label;
+}
+
+function personImg(person, size = 'inline') {
+  const meta = PERSON[person] || PERSON.A;
+  return `<img class="person-avatar person-avatar-${size}" src="${meta.src}" alt="" aria-hidden="true" loading="lazy" decoding="async">`;
+}
+
+function personImgPair(from, to, size = 'inline') {
+  return `${personImg(from, size)}<span class="person-pair-arrow" aria-hidden="true">→</span>${personImg(to, size)}`;
+}
+
 const SPLIT_LABELS = {
-  SPLIT_5050: '👥 一人一半',
-  FOR_A: `${PERSON_EMOJI.A} 自己嘅`,
-  FOR_B: `${PERSON_EMOJI.B} 自己嘅`,
-  REPAY: '🤝🏻 還錢',
-  LOAN: '💸 借錢',
+  SPLIT_5050: '一人一半',
+  FOR_A: '自己嘅',
+  FOR_B: '自己嘅',
+  REPAY: '還錢',
+  LOAN: '借錢',
 };
 
 const REPAY_CATEGORY = '還錢';
@@ -164,8 +280,13 @@ const els = {
 
 /* ===== Utilities ===== */
 function showToast(message, type = 'info') {
-  els.toast.textContent = message;
   els.toast.className = `toast ${type}`;
+  els.toast.classList.remove('hidden');
+  if (/<\s*(img|span|svg)\b/i.test(String(message))) {
+    els.toast.innerHTML = message;
+  } else {
+    els.toast.textContent = message;
+  }
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => els.toast.classList.add('hidden'), 2800);
 }
@@ -338,6 +459,13 @@ function formatTransactionMeta(tx) {
   return `${tx.date}${timePart} · ${escapeHtml(getCategoryLabel(tx.category))}`;
 }
 
+function formatTransactionLocationHtml(tx) {
+  const location = getLocationText(tx);
+  if (!location) return '';
+  const mapsUrl = locationMapsUrl(location);
+  return `<div class="tx-location"><a class="tx-location-link" href="${escapeHtml(mapsUrl)}" target="_blank" rel="noopener noreferrer">📍 ${escapeHtml(location)}</a></div>`;
+}
+
 function getLocationText(tx) {
   return String(tx?.location || '').trim();
 }
@@ -381,6 +509,171 @@ function getCategoryEmoji(category) {
   return '✏️';
 }
 
+function getCategoryIconSrc(category) {
+  if (CATEGORY_ICONS[category]) return CATEGORY_ICONS[category];
+  if (String(category).startsWith('餐飲')) return CATEGORY_ICONS['餐飲'];
+  return null;
+}
+
+function categoryIconHtml(category, size = 'inline', alt) {
+  const src = getCategoryIconSrc(category);
+  if (!src) return null;
+  const label = alt || getCategoryLabel(category);
+  return `<img class="category-icon category-icon-${size}" src="${src}" alt="${escapeHtml(label)}" loading="lazy" decoding="async">`;
+}
+
+function splitIconHtml(splitMode, size = 'inline', alt = '一人一半') {
+  const src = SPLIT_ICONS[splitMode];
+  if (!src) return null;
+  return `<img class="split-icon split-icon-${size}" src="${src}" alt="${escapeHtml(alt)}" loading="lazy" decoding="async">`;
+}
+
+function uiIconHtml(key, size = 'label', alt = '') {
+  const src = UI_ICONS[key];
+  if (!src) return '';
+  const altAttr = alt ? ` alt="${escapeHtml(alt)}"` : ' alt="" aria-hidden="true"';
+  return `<img class="ui-icon ui-icon-${size}" src="${src}?v=${UI_ICON_CACHE}"${altAttr} loading="lazy" decoding="async">`;
+}
+
+function currencyUiIconHtml(currency, size = 'sm') {
+  if (currency === 'JPY') return uiIconHtml('jpy', size);
+  if (currency === 'HKD') return uiIconHtml('hkd', size);
+  return uiIconHtml('exchange', size);
+}
+
+function transactionIconHtml(tx, size = 'list') {
+  if (isRepayTransaction(tx)) return categoryIconHtml('還錢', size, '還錢');
+  if (isLoanTransaction(tx)) return categoryIconHtml('借錢', size, '借錢');
+  const icon = categoryIconHtml(tx.category, size);
+  if (icon) return icon;
+  return `<span class="category-emoji-fallback" aria-hidden="true">${getCategoryEmoji(tx.category)}</span>`;
+}
+
+function getSplitBeneficiary(tx) {
+  if (tx.split_mode === 'FOR_A') return 'A';
+  if (tx.split_mode === 'FOR_B') return 'B';
+  return null;
+}
+
+function isSelfSplit(tx) {
+  if (isCashTransferTransaction(tx)) return false;
+  const beneficiary = getSplitBeneficiary(tx);
+  return beneficiary && tx.payer === beneficiary;
+}
+
+function isHelpPaySplit(tx) {
+  if (isCashTransferTransaction(tx)) return false;
+  const beneficiary = getSplitBeneficiary(tx);
+  return beneficiary && tx.payer !== beneficiary;
+}
+
+function usesCombinedSplitTag(tx) {
+  if (isCashTransferTransaction(tx)) return false;
+  return tx.split_mode === 'SPLIT_5050' || isSelfSplit(tx) || isHelpPaySplit(tx);
+}
+
+function splitFlowComboHtml(leftHtml, rightHtml, variant, ariaLabel) {
+  return `<span class="split-flow-combo split-flow-combo-${variant}" aria-label="${escapeHtml(ariaLabel)}">
+    ${leftHtml}
+    <span class="split-flow-arrow" aria-hidden="true">→</span>
+    ${rightHtml}
+  </span>`;
+}
+
+function split5050PayerTagHtml(tx, variant = 'tag') {
+  const payerName = tx.payer === 'A' ? '男孩' : '女生';
+  const payerSize = variant === 'compact' ? 'xs' : 'inline';
+  const splitSize = variant === 'compact' ? 'combo-sm' : 'combo';
+  return splitFlowComboHtml(
+    personImg(tx.payer, payerSize),
+    splitIconHtml('SPLIT_5050', splitSize),
+    variant,
+    `一人一半 · ${payerName}畀`
+  );
+}
+
+function selfSplitTagHtml(tx, variant = 'tag') {
+  const person = tx.payer;
+  const name = person === 'A' ? '男孩' : '女生';
+  const size = variant === 'compact' ? 'xs' : 'inline';
+  return `<span class="split-self-combo split-self-combo-${variant}" aria-label="${name}自己嘅">
+    ${personImg(person, size)}<span class="split-self-label">自己嘅</span>
+  </span>`;
+}
+
+function helpPaySplitTagHtml(tx, variant = 'tag') {
+  const beneficiary = getSplitBeneficiary(tx);
+  const payerName = tx.payer === 'A' ? '男孩' : '女生';
+  const benName = beneficiary === 'A' ? '男孩' : '女生';
+  const size = variant === 'compact' ? 'xs' : 'inline';
+  return splitFlowComboHtml(
+    personImg(tx.payer, size),
+    personImg(beneficiary, size),
+    variant,
+    `${payerName}幫${benName}畀`
+  );
+}
+
+function combinedSplitTagHtml(tx, variant = 'tag') {
+  if (tx.split_mode === 'SPLIT_5050') return split5050PayerTagHtml(tx, variant);
+  if (isSelfSplit(tx)) return selfSplitTagHtml(tx, variant);
+  if (isHelpPaySplit(tx)) return helpPaySplitTagHtml(tx, variant);
+  return '';
+}
+
+function combinedSplitTagClass(tx) {
+  if (tx.split_mode === 'SPLIT_5050') return 'split-5050';
+  if (isSelfSplit(tx)) return 'split-self';
+  if (isHelpPaySplit(tx)) return 'split-help';
+  return '';
+}
+
+function compactCreamChipHtml(innerHtml, ariaLabel = '') {
+  const labelAttr = ariaLabel ? ` aria-label="${escapeHtml(ariaLabel)}"` : '';
+  return `<span class="compact-cream-chip"${labelAttr}>${innerHtml}</span>`;
+}
+
+function compactTitleSuffixHtml(tx) {
+  if (isLoanTransaction(tx)) {
+    const icon = categoryIconHtml('借錢', 'inline', '借錢') || '';
+    return compactCreamChipHtml(`${icon} 借錢`, '借錢');
+  }
+  if (isRepayTransaction(tx)) {
+    const icon = categoryIconHtml('還錢', 'inline', '還錢') || '';
+    return `<span class="compact-inline-chip compact-repay-chip" aria-label="還錢">${icon} 還錢</span>`;
+  }
+  if (usesCombinedSplitTag(tx)) {
+    return combinedSplitTagHtml(tx, 'compact');
+  }
+  const payerName = tx.payer === 'A' ? '男孩付款' : '女生付款';
+  return compactCreamChipHtml(personImg(tx.payer, 'xs'), payerName);
+}
+
+function splitTagHtml(tx) {
+  if (isRepayTransaction(tx)) {
+    return `${categoryIconHtml('還錢', 'inline', '還錢')} 還錢`;
+  }
+  if (isLoanTransaction(tx)) {
+    return `${categoryIconHtml('借錢', 'inline', '借錢')} 借錢`;
+  }
+  if (isHelpPaySplit(tx)) {
+    const beneficiary = getSplitBeneficiary(tx);
+    const payerName = tx.payer === 'A' ? '男孩' : '女生';
+    const benName = beneficiary === 'A' ? '男孩' : '女生';
+    return `<span class="detail-split-help" aria-label="${payerName}幫${benName}畀">${personImg(tx.payer, 'inline')} 幫 ${personImg(beneficiary, 'inline')} 畀</span>`;
+  }
+  if (tx.split_mode === 'FOR_A') {
+    return `${personImg('A', 'inline')} 自己嘅`;
+  }
+  if (tx.split_mode === 'FOR_B') {
+    return `${personImg('B', 'inline')} 自己嘅`;
+  }
+  if (tx.split_mode === 'SPLIT_5050') {
+    return `${splitIconHtml('SPLIT_5050', 'inline')} 一人一半`;
+  }
+  return escapeHtml(SPLIT_LABELS[tx.split_mode] || tx.split_mode);
+}
+
 function getCategoryLabel(category) {
   if (String(category).startsWith('餐飲-')) return category.slice(3);
   return category;
@@ -418,34 +711,270 @@ function matchesCategoryFilter(txCategory, filterValue) {
   return txCategory === filterValue;
 }
 
-function resolveCategory(selectEl, customInputEl) {
-  if (selectEl.value === CUSTOM_CATEGORY) {
+function resolveCategory(categoryInputEl, customInputEl) {
+  if (categoryInputEl.value === CUSTOM_CATEGORY) {
     return customInputEl.value.trim();
   }
-  return selectEl.value;
+  return categoryInputEl.value;
 }
 
-function setCategoryFields(selectEl, customInputEl, customRowEl, category) {
-  if (isPredefinedCategory(category)) {
-    selectEl.value = category;
-    customInputEl.value = '';
-    customRowEl.classList.add('hidden');
+function getCategoryPickerItem(value) {
+  for (const group of CATEGORY_PICKER_GROUPS) {
+    const found = group.items.find((item) => item.value === value);
+    if (found) return found;
+  }
+  return null;
+}
+
+function getCategoryPickerLabel(value) {
+  const item = getCategoryPickerItem(value);
+  if (item) return item.label;
+  if (value === CUSTOM_CATEGORY) return '自定';
+  return getCategoryLabel(value) || '選擇分類';
+}
+
+function buildCategoryPickerCard(item) {
+  const iconHtml = item.custom
+    ? uiIconHtml('edit', 'label')
+    : categoryIconHtml(item.value, 'picker') ||
+      `<span class="category-picker-emoji" aria-hidden="true">${getCategoryEmoji(item.value)}</span>`;
+  return `<button type="button" class="category-picker-card" data-value="${escapeHtml(item.value)}" role="radio" aria-checked="false" aria-label="${escapeHtml(item.label)}">
+    <span class="category-picker-icon">${iconHtml}</span>
+    <span class="category-picker-label">${escapeHtml(item.label)}</span>
+  </button>`;
+}
+
+function buildCategoryPickerHtml() {
+  return CATEGORY_PICKER_GROUPS.map((group) => {
+    let html = '';
+    if (group.label) {
+      html += `<div class="category-picker-group-label">${escapeHtml(group.label)}</div>`;
+    }
+    html += group.items.map((item) => buildCategoryPickerCard(item)).join('');
+    return html;
+  }).join('');
+}
+
+function getCategoryPickerWrap(categoryInputId) {
+  return document.querySelector(`.category-picker-wrap[data-category-input="${categoryInputId}"]`);
+}
+
+function syncCategoryPickerTrigger(wrapEl, value) {
+  if (!wrapEl) return;
+  const iconEl = wrapEl.querySelector('.category-picker-trigger-icon');
+  const textEl = wrapEl.querySelector('.category-picker-trigger-text');
+  if (!iconEl || !textEl) return;
+
+  const item = getCategoryPickerItem(value);
+  const label = getCategoryPickerLabel(value);
+  textEl.textContent = label;
+
+  if (item?.custom || value === CUSTOM_CATEGORY) {
+    iconEl.innerHTML = uiIconHtml('edit', 'label');
   } else {
-    selectEl.value = CUSTOM_CATEGORY;
-    customInputEl.value = category;
-    customRowEl.classList.remove('hidden');
+    iconEl.innerHTML =
+      categoryIconHtml(value, 'inline') ||
+      `<span class="category-picker-emoji" aria-hidden="true">${getCategoryEmoji(value)}</span>`;
   }
 }
 
-function setupCategorySelect(selectId, customRowId, customInputId) {
-  const select = $(selectId);
+function setCategoryPickerOpen(wrapEl, open) {
+  if (!wrapEl) return;
+  const pickerEl = wrapEl.querySelector('.category-picker');
+  const triggerEl = wrapEl.querySelector('.category-picker-trigger');
+  if (!pickerEl || !triggerEl) return;
+  pickerEl.classList.toggle('hidden', !open);
+  wrapEl.classList.toggle('is-open', open);
+  triggerEl.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function syncCategoryPicker(pickerEl, value) {
+  if (!pickerEl) return;
+  pickerEl.querySelectorAll('.category-picker-card').forEach((card) => {
+    const selected = card.dataset.value === value;
+    card.classList.toggle('selected', selected);
+    card.setAttribute('aria-checked', selected ? 'true' : 'false');
+  });
+  const wrapEl = pickerEl.closest('.category-picker-wrap');
+  syncCategoryPickerTrigger(wrapEl, value);
+}
+
+function setCategoryFields(categoryInputEl, customInputEl, customRowEl, category) {
+  const wrapEl = getCategoryPickerWrap(categoryInputEl.id);
+  const pickerEl = wrapEl?.querySelector('.category-picker');
+  if (isPredefinedCategory(category)) {
+    categoryInputEl.value = category;
+    customInputEl.value = '';
+    customRowEl.classList.add('hidden');
+    syncCategoryPicker(pickerEl, category);
+  } else {
+    categoryInputEl.value = CUSTOM_CATEGORY;
+    customInputEl.value = category;
+    customRowEl.classList.remove('hidden');
+    syncCategoryPicker(pickerEl, CUSTOM_CATEGORY);
+  }
+  setCategoryPickerOpen(wrapEl, false);
+}
+
+function setupCategoryPicker(categoryInputId, customRowId, customInputId) {
+  const categoryInput = $(categoryInputId);
+  const wrapEl = getCategoryPickerWrap(categoryInputId.slice(1));
+  const pickerEl = wrapEl?.querySelector('.category-picker');
+  const triggerEl = wrapEl?.querySelector('.category-picker-trigger');
   const row = $(customRowId);
   const input = $(customInputId);
+  if (!categoryInput || !wrapEl || !pickerEl || !triggerEl) return;
 
-  select.addEventListener('change', () => {
-    const isCustom = select.value === CUSTOM_CATEGORY;
+  pickerEl.innerHTML = buildCategoryPickerHtml();
+  syncCategoryPicker(pickerEl, categoryInput.value);
+  setCategoryPickerOpen(wrapEl, false);
+
+  triggerEl.addEventListener('click', () => {
+    const willOpen = pickerEl.classList.contains('hidden');
+    setCategoryPickerOpen(wrapEl, willOpen);
+  });
+
+  pickerEl.addEventListener('click', (e) => {
+    const card = e.target.closest('.category-picker-card');
+    if (!card) return;
+    categoryInput.value = card.dataset.value;
+    syncCategoryPicker(pickerEl, categoryInput.value);
+    const isCustom = categoryInput.value === CUSTOM_CATEGORY;
     row.classList.toggle('hidden', !isCustom);
+    setCategoryPickerOpen(wrapEl, false);
     if (isCustom) input.focus();
+  });
+}
+
+function filterItemIconHtml(item, size = 'picker') {
+  const uiSize = size === 'picker' ? 'picker' : size === 'inline' ? 'inline' : 'label';
+  if (item.all) {
+    return uiIconHtml('success', uiSize);
+  }
+  if (item.custom) {
+    return uiIconHtml('edit', uiSize);
+  }
+  if (item.split) {
+    return (
+      splitIconHtml(item.split, size) ||
+      `<span class="category-picker-emoji" aria-hidden="true">👥</span>`
+    );
+  }
+  if (item.emoji) {
+    return `<span class="category-picker-emoji" aria-hidden="true">${item.emoji}</span>`;
+  }
+  if (item.person) {
+    return personImg(item.person, size === 'picker' ? 'picker' : 'inline');
+  }
+  const category = item.category || item.value;
+  return (
+    categoryIconHtml(category, size) ||
+    `<span class="category-picker-emoji" aria-hidden="true">${getCategoryEmoji(category)}</span>`
+  );
+}
+
+function buildFilterPickerCard(item) {
+  return `<button type="button" class="category-picker-card" data-value="${escapeHtml(item.value)}" role="radio" aria-checked="false" aria-label="${escapeHtml(item.label)}">
+    <span class="category-picker-icon">${filterItemIconHtml(item, 'picker')}</span>
+    <span class="category-picker-label">${escapeHtml(item.label)}</span>
+  </button>`;
+}
+
+function findFilterItem(itemsOrGroups, value) {
+  if (Array.isArray(itemsOrGroups) && itemsOrGroups[0]?.items) {
+    for (const group of itemsOrGroups) {
+      const found = group.items.find((item) => item.value === value);
+      if (found) return found;
+    }
+    return null;
+  }
+  return itemsOrGroups.find((item) => item.value === value) || null;
+}
+
+function buildFilterPickerHtml(itemsOrGroups) {
+  if (Array.isArray(itemsOrGroups) && itemsOrGroups[0]?.items) {
+    return itemsOrGroups
+      .map((group) => {
+        let html = '';
+        if (group.label) {
+          html += `<div class="category-picker-group-label">${escapeHtml(group.label)}</div>`;
+        }
+        html += group.items.map((item) => buildFilterPickerCard(item)).join('');
+        return html;
+      })
+      .join('');
+  }
+  return itemsOrGroups.map((item) => buildFilterPickerCard(item)).join('');
+}
+
+function getFilterPickerWrap(inputId) {
+  return document.querySelector(`.category-picker-wrap[data-filter-picker="${inputId}"]`);
+}
+
+function syncFilterPickerTrigger(wrapEl, item) {
+  if (!wrapEl || !item) return;
+  const iconEl = wrapEl.querySelector('.category-picker-trigger-icon');
+  const textEl = wrapEl.querySelector('.category-picker-trigger-text');
+  if (!iconEl || !textEl) return;
+  textEl.textContent = item.label;
+  iconEl.innerHTML = filterItemIconHtml(item, 'inline');
+}
+
+function syncFilterPicker(wrapEl, itemsOrGroups, value) {
+  if (!wrapEl) return;
+  const pickerEl = wrapEl.querySelector('.category-picker');
+  if (!pickerEl) return;
+  pickerEl.querySelectorAll('.category-picker-card').forEach((card) => {
+    const selected = card.dataset.value === value;
+    card.classList.toggle('selected', selected);
+    card.setAttribute('aria-checked', selected ? 'true' : 'false');
+  });
+  const item = findFilterItem(itemsOrGroups, value) || findFilterItem(itemsOrGroups, '');
+  syncFilterPickerTrigger(wrapEl, item);
+}
+
+function getFilterCategoryLabel(value) {
+  return findFilterItem(FILTER_CATEGORY_GROUPS, value)?.label || '全部分類';
+}
+
+function getFilterSplitLabel(value) {
+  return findFilterItem(FILTER_SPLIT_ITEMS, value)?.label || '全部';
+}
+
+function setupFilterIconPicker(inputId, itemsOrGroups, onChange) {
+  const inputEl = $(`#${inputId}`);
+  const wrapEl = getFilterPickerWrap(inputId);
+  const pickerEl = wrapEl?.querySelector('.category-picker');
+  const triggerEl = wrapEl?.querySelector('.category-picker-trigger');
+  if (!inputEl || !wrapEl || !pickerEl || !triggerEl) return;
+
+  pickerEl.innerHTML = buildFilterPickerHtml(itemsOrGroups);
+  syncFilterPicker(wrapEl, itemsOrGroups, inputEl.value);
+  setCategoryPickerOpen(wrapEl, false);
+
+  triggerEl.addEventListener('click', () => {
+    const willOpen = pickerEl.classList.contains('hidden');
+    setCategoryPickerOpen(wrapEl, willOpen);
+  });
+
+  pickerEl.addEventListener('click', (e) => {
+    const card = e.target.closest('.category-picker-card');
+    if (!card) return;
+    inputEl.value = card.dataset.value;
+    syncFilterPicker(wrapEl, itemsOrGroups, inputEl.value);
+    setCategoryPickerOpen(wrapEl, false);
+    onChange?.(inputEl.value);
+  });
+}
+
+function setupListFilterPickers(onChange) {
+  setupFilterIconPicker('filter-category', FILTER_CATEGORY_GROUPS, (value) => {
+    listFilters.category = value;
+    onChange?.();
+  });
+  setupFilterIconPicker('filter-split', FILTER_SPLIT_ITEMS, (value) => {
+    listFilters.splitMode = value;
+    onChange?.();
   });
 }
 
@@ -482,33 +1011,23 @@ function applySplitLabelsToDom() {
       const input = label.querySelector('input[type="radio"]');
       const textSpan = label.querySelector(':scope > span');
       if (!input || !textSpan) return;
+      if (input.value === 'SPLIT_5050') {
+        textSpan.innerHTML = `${splitIconHtml('SPLIT_5050', 'split')} 一人一半`;
+        return;
+      }
+      if (input.value === 'FOR_A') {
+        textSpan.innerHTML = `${personImg('A', 'split')} 自己嘅`;
+        return;
+      }
+      if (input.value === 'FOR_B') {
+        textSpan.innerHTML = `${personImg('B', 'split')} 自己嘅`;
+        return;
+      }
       const splitLabel = SPLIT_LABELS[input.value];
       if (!splitLabel) return;
-      const spaceIdx = splitLabel.indexOf(' ');
-      const emoji = spaceIdx > 0 ? splitLabel.slice(0, spaceIdx) : splitLabel;
-      const text = spaceIdx > 0 ? splitLabel.slice(spaceIdx + 1) : '';
-      textSpan.innerHTML = `<span class="split-emoji-lg" aria-hidden="true">${emoji}</span> ${text}`;
+      textSpan.innerHTML = escapeHtml(splitLabel);
     });
   });
-
-  const filterSplit = $('#filter-split');
-  if (filterSplit) {
-    const current = filterSplit.value;
-    filterSplit.innerHTML = [
-      { value: '', label: '全部' },
-      { value: 'SPLIT_5050', label: SPLIT_LABELS.SPLIT_5050 },
-      { value: 'FOR_A', label: SPLIT_LABELS.FOR_A },
-      { value: 'FOR_B', label: SPLIT_LABELS.FOR_B },
-      { value: 'REPAY', label: SPLIT_LABELS.REPAY },
-      { value: 'LOAN', label: SPLIT_LABELS.LOAN },
-    ]
-      .map(
-        (o) =>
-          `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`
-      )
-      .join('');
-    filterSplit.value = current;
-  }
 }
 
 function hasDayRangeFilter() {
@@ -546,20 +1065,104 @@ function initListDayFilter() {
   updateDayScopeToggle();
 }
 
-function updateDayScopeToggle() {
+function getQuickDayScope() {
   const today = todayISO();
   const { dayFrom, dayTo } = listFilters;
-  let scope = 'custom';
-  if (!dayFrom && !dayTo) {
-    scope = 'all';
-  } else if (dayFrom === today && dayTo === today) {
-    scope = 'today';
+  if (!dayFrom && !dayTo) return 'all';
+  if (dayFrom === today && dayTo === today) return 'today';
+  return 'custom';
+}
+
+function getQuickDayValueLabel() {
+  const scope = getQuickDayScope();
+  if (scope === 'all') return '全部';
+  if (scope === 'today') return '今日';
+  return '自定範圍';
+}
+
+function cycleQuickDayFilter(onChange) {
+  const scope = getQuickDayScope();
+  if (scope === 'all') {
+    setDayFilter(todayISO());
+  } else {
+    setDayRange('', '');
   }
-  document.querySelectorAll('#filter-day-toggle [data-day-scope]').forEach((btn) => {
-    const active = btn.dataset.dayScope === scope;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
-  });
+  syncQuickFilterChips();
+  onChange();
+}
+
+function cycleQuickCurrencyFilter(onChange) {
+  const order = ['', 'JPY', 'HKD'];
+  const cur = listFilters.currency || '';
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  listFilters.currency = next;
+  syncQuickFilterChips();
+  onChange();
+}
+
+function cycleQuickPayerFilter(onChange) {
+  const order = ['', 'A', 'B'];
+  const cur = listFilters.payer || '';
+  const next = order[(order.indexOf(cur) + 1) % order.length];
+  listFilters.payer = next;
+  syncQuickFilterChips();
+  onChange();
+}
+
+function syncQuickFilterChips() {
+  const dayScope = getQuickDayScope();
+  const dayLabelEl = $('#filter-day-chip-label');
+  const dayIconEl = $('#filter-day-chip-icon');
+  const dayChip = $('#filter-day-chip');
+  if (dayIconEl) dayIconEl.innerHTML = uiIconHtml('date', 'md');
+  if (dayLabelEl) dayLabelEl.textContent = getQuickDayValueLabel();
+  const dayActive = hasDayRangeFilter();
+  dayChip?.classList.toggle('is-active', dayActive);
+  dayChip?.setAttribute('aria-pressed', dayActive ? 'true' : 'false');
+  dayChip?.setAttribute('aria-label', `日子：${getQuickDayValueLabel()}`);
+
+  const currency = listFilters.currency || '';
+  const currencyIconEl = $('#filter-currency-chip-icon');
+  const currencyChip = $('#filter-currency-chip');
+  if (currencyIconEl) {
+    if (currency === 'JPY') currencyIconEl.innerHTML = currencyUiIconHtml('JPY', 'md');
+    else if (currency === 'HKD') currencyIconEl.innerHTML = currencyUiIconHtml('HKD', 'md');
+    else currencyIconEl.innerHTML = uiIconHtml('exchange', 'md');
+  }
+  currencyChip?.classList.toggle('is-active', Boolean(currency));
+  currencyChip?.setAttribute('aria-pressed', currency ? 'true' : 'false');
+  currencyChip?.setAttribute('aria-label', currency ? `幣別：${currency}` : '幣別：全部');
+
+  const payer = listFilters.payer || '';
+  const payerIconEl = $('#filter-payer-chip-icon');
+  const payerChip = $('#filter-payer-chip');
+  if (payerIconEl) {
+    if (payer === 'A') payerIconEl.innerHTML = personImg('A', 'md');
+    else if (payer === 'B') payerIconEl.innerHTML = personImg('B', 'md');
+    else payerIconEl.innerHTML = uiIconHtml('creditCard', 'md');
+  }
+  payerChip?.classList.toggle('is-active', Boolean(payer));
+  payerChip?.setAttribute('aria-pressed', payer ? 'true' : 'false');
+  payerChip?.setAttribute(
+    'aria-label',
+    payer === 'A' ? '邊個畀：男孩' : payer === 'B' ? '邊個畀：女生' : '邊個畀：全部'
+  );
+
+  const currencyHidden = $('#filter-currency');
+  if (currencyHidden) currencyHidden.value = currency;
+  const payerHidden = $('#filter-payer');
+  if (payerHidden) payerHidden.value = payer;
+}
+
+function setupQuickFilterToggles(onChange) {
+  $('#filter-day-chip')?.addEventListener('click', () => cycleQuickDayFilter(onChange));
+  $('#filter-currency-chip')?.addEventListener('click', () => cycleQuickCurrencyFilter(onChange));
+  $('#filter-payer-chip')?.addEventListener('click', () => cycleQuickPayerFilter(onChange));
+  syncQuickFilterChips();
+}
+
+function updateDayScopeToggle() {
+  syncQuickFilterChips();
   syncFilterDatePanel();
 }
 
@@ -571,21 +1174,19 @@ function syncFilterDatePanel() {
     const today = todayISO();
     const isTodayOnly = listFilters.dayFrom === today && listFilters.dayTo === today;
     if (!isTodayOnly) panel.open = true;
-    if (summary) summary.textContent = `📅 ${formatDayRangeLabel()}`;
+    if (summary) summary.innerHTML = `${uiIconHtml('date', 'label')} ${escapeHtml(formatDayRangeLabel())}`;
   } else if (summary) {
-    summary.textContent = '📅 自訂日期範圍';
+    summary.innerHTML = `${uiIconHtml('date', 'label')} 自訂日期範圍`;
   }
 }
 
 function updateFilterActiveSummary() {
   const parts = [];
-  const cat = $('#filter-category');
-  if (listFilters.category && cat?.selectedOptions?.[0]) {
-    parts.push(cat.selectedOptions[0].textContent.trim());
+  if (listFilters.category) {
+    parts.push(getFilterCategoryLabel(listFilters.category));
   }
-  const split = $('#filter-split');
-  if (listFilters.splitMode && split?.selectedOptions?.[0]) {
-    parts.push(split.selectedOptions[0].textContent.trim());
+  if (listFilters.splitMode) {
+    parts.push(getFilterSplitLabel(listFilters.splitMode));
   }
   if (listFilters.sortAmount === 'asc') parts.push('價錢↑');
   if (listFilters.sortAmount === 'desc') parts.push('價錢↓');
@@ -864,7 +1465,9 @@ function updateThemeControls() {
   const btn = $('#btn-toggle-theme');
   const desc = $('#theme-switcher-desc');
   if (btn) {
-    btn.textContent = cyber ? '切回日間模式 ☀️' : '啟用賽博龐克 🌙';
+    btn.innerHTML = cyber
+      ? `${uiIconHtml('list', 'btn')} 切回日間模式`
+      : `${uiIconHtml('list', 'btn')} 啟用賽博龐克`;
     btn.setAttribute('aria-pressed', cyber ? 'true' : 'false');
   }
   if (desc) {
@@ -885,7 +1488,9 @@ function applyTheme(theme) {
 function toggleTheme() {
   applyTheme(isCyberpunkTheme() ? 'light' : 'cyberpunk');
   showToast(
-    isCyberpunkTheme() ? '已切換賽博龐克模式 🌃' : '已切回日間模式 ☀️',
+    isCyberpunkTheme()
+      ? `${uiIconHtml('list', 'btn')} 已切換賽博龐克模式`
+      : `${uiIconHtml('theme', 'btn')} 已切回日間模式`,
     'success'
   );
 }
@@ -929,7 +1534,7 @@ function openSheetSwitcher() {
   }
 
   if (confirmBtn) {
-    confirmBtn.textContent = `改用${other.label} ✅`;
+    confirmBtn.innerHTML = `改用${other.label} ${uiIconHtml('confirm', 'btn')}`;
     confirmBtn.dataset.target = otherKey;
   }
 
@@ -1316,7 +1921,7 @@ function calcHelpPaidInTxs(txs) {
   return { bHelpedA, aHelpedB };
 }
 
-function buildHelpPayMatrixHtml(txs, currency) {
+function buildHelpPayMatrixHtml(txs, currency, options = {}) {
   const rows = txs
     .map((tx) => ({ tx, ...getHelpPayColumns(tx) }))
     .filter((row) => row.aHelpedB > 0 || row.bHelpedA > 0);
@@ -1342,15 +1947,16 @@ function buildHelpPayMatrixHtml(txs, currency) {
     .join('');
 
   const helpNet = helpNetBOwesA(aTotal, bTotal);
-  const netFormula = `${escapeHtml(formatMoney(aTotal, currency))} − ${escapeHtml(formatMoney(bTotal, currency))} = ${escapeHtml(formatNetDirection(helpNet, currency))}`;
+  const netFormula = `${escapeHtml(formatMoney(aTotal, currency))} − ${escapeHtml(formatMoney(bTotal, currency))} = ${formatNetDirectionHtml(helpNet, currency)}`;
+  const netLabel = options.finalSectionFollows ? '消費對消：' : '而家要還：';
 
   const scrollTable = `<div class="explain-scroll-wrap explain-scroll-matrix" style="max-height:${EXPLAIN_SCROLL_MAX}px">
     <table class="help-pay-matrix" aria-label="幫畀對照表">
       <thead>
         <tr>
           <th scope="col">記錄</th>
-          <th scope="col">${PERSON_EMOJI.A}→${PERSON_EMOJI.B}</th>
-          <th scope="col">${PERSON_EMOJI.B}→${PERSON_EMOJI.A}</th>
+          <th scope="col">${personImgPair('A', 'B', 'xs')}</th>
+          <th scope="col">${personImgPair('B', 'A', 'xs')}</th>
         </tr>
       </thead>
       <tbody>${bodyRows}</tbody>
@@ -1363,7 +1969,7 @@ function buildHelpPayMatrixHtml(txs, currency) {
       <span>${escapeHtml(formatMoney(aTotal, currency))}</span>
       <span>${escapeHtml(formatMoney(bTotal, currency))}</span>
     </div>
-    <div class="help-pay-matrix-net-row"><strong>對消：</strong>${netFormula}</div>
+    <div class="help-pay-matrix-net-row"><strong>${netLabel}</strong>${netFormula}</div>
   </div>`;
 
   return scrollTable + footer + buildExplainScrollHint(rows.length);
@@ -1440,15 +2046,15 @@ function buildWhyCalcItemsHtml(tx) {
     (t) => !isCashTransferTransaction(t) && !isNegligibleMoney(t.net_b_owes_a, currency)
   );
   const latestNet = cycle.reduce((sum, t) => sum + (Number(t.net_b_owes_a) || 0), 0);
-  const payee = self.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A;
-  const payer = PERSON_EMOJI[self.payer] || self.payer;
+  const payee = self.payer === 'A' ? 'B' : 'A';
+  const payer = personImg(self.payer, 'inline');
   const amount = formatMoney(Math.abs(Number(self.amount) || 0), currency);
   const latestDiffers = !isNegligibleMoney(latestNet - afterNet, currency);
 
   let html = `<div class="detail-why-items">`;
   html += `<div class="detail-why-heading">① 呢筆做咗咩</div>`;
   html += `<div class="detail-why-calc-line is-current">
-    <span class="detail-why-calc-label">${payer} 還咗 ${escapeHtml(amount)} 俾 ${payee}</span>
+    <span class="detail-why-calc-label">${payer} 還咗 ${escapeHtml(amount)} 俾 ${personImg(payee, 'inline')}</span>
   </div>`;
 
   html += `<div class="detail-why-heading">② 呢筆還之前</div>`;
@@ -1463,7 +2069,7 @@ function buildWhyCalcItemsHtml(tx) {
             <span class="detail-why-title">${escapeHtml(line.title)}</span>
             <span class="detail-why-meta">${escapeHtml(line.meta)}</span>
           </span>
-          <span class="detail-why-net ${line.netClass}">${escapeHtml(line.netLabel)}</span>
+          <span class="detail-why-net ${line.netClass}">${line.netLabel}</span>
         </button>
       </li>`;
     });
@@ -1474,14 +2080,14 @@ function buildWhyCalcItemsHtml(tx) {
   }
   html += `<div class="detail-why-calc-line">
     <span class="detail-why-calc-label">當時欠數</span>
-    <span class="detail-why-calc-value">${escapeHtml(formatNetDirection(beforeNet, currency))}</span>
+    <span class="detail-why-calc-value">${formatNetDirectionHtml(beforeNet, currency)}</span>
   </div>`;
 
   html += `<div class="detail-why-heading">③ 呢筆還之後</div>`;
-  html += `<div class="detail-why-result"><strong>變成：</strong>${escapeHtml(formatNetDirection(afterNet, currency))}</div>`;
+  html += `<div class="detail-why-result"><strong>變成：</strong>${formatNetDirectionHtml(afterNet, currency)}</div>`;
 
   if (latestDiffers) {
-    html += `<div class="detail-why-calc-note">之後仲有消費／還錢。而家最新：${escapeHtml(formatNetDirection(latestNet, currency))}</div>`;
+    html += `<div class="detail-why-calc-note">之後仲有消費／還錢。而家最新：${formatNetDirectionHtml(latestNet, currency)}</div>`;
   }
 
   html += `</div>`;
@@ -1492,17 +2098,17 @@ function buildWhyCalcItemsHtml(tx) {
 function helpPayText(bHelpedA, aHelpedB, currency) {
   const rows = [];
   if (aHelpedB > 0) {
-    rows.push(`${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀咗 ${moneyFigHtml(aHelpedB, currency)}`);
+    rows.push(`${personImg('A', 'inline')} 幫 ${personImg('B', 'inline')} 畀咗 ${moneyFigHtml(aHelpedB, currency)}`);
   }
   if (bHelpedA > 0) {
-    rows.push(`${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${moneyFigHtml(bHelpedA, currency)}`);
+    rows.push(`${personImg('B', 'inline')} 幫 ${personImg('A', 'inline')} 畀咗 ${moneyFigHtml(bHelpedA, currency)}`);
   }
   if (!rows.length) return '';
 
   const helpNet = helpNetBOwesA(aHelpedB, bHelpedA);
   const netLine = isNegligibleMoney(helpNet, currency)
     ? '對消後（未計還錢）大家唔欠'
-    : `對消後（未計還錢）${escapeHtml(formatNetDirection(helpNet, currency))}`;
+    : `對消後（未計還錢）${formatNetDirectionHtml(helpNet, currency)}`;
 
   return `<div class="help-pay-stack">
     ${rows.map((row) => `<div class="help-pay-row">${row}</div>`).join('')}
@@ -1539,49 +2145,49 @@ function settlementText(netAmount, currency) {
   }
   if (netAmount > 0) {
     return {
-      text: `${PERSON_EMOJI.B} 要還俾 ${PERSON_EMOJI.A}：${formatMoney(netAmount, currency)}`,
-      html: `${PERSON_EMOJI.B} 要還俾 ${PERSON_EMOJI.A}：${moneyFigHtml(netAmount, currency, 'money-debt')}`,
+      text: `${personName('B')} 要還俾 ${personName('A')}：${formatMoney(netAmount, currency)}`,
+      html: `${personImg('B', 'inline')} 要還俾 ${personImg('A', 'inline')}：${moneyFigHtml(netAmount, currency, 'money-debt')}`,
       balanced: false,
     };
   }
   return {
-    text: `${PERSON_EMOJI.A} 要還俾 ${PERSON_EMOJI.B}：${formatMoney(Math.abs(netAmount), currency)}`,
-    html: `${PERSON_EMOJI.A} 要還俾 ${PERSON_EMOJI.B}：${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}`,
+    text: `${personName('A')} 要還俾 ${personName('B')}：${formatMoney(Math.abs(netAmount), currency)}`,
+    html: `${personImg('A', 'inline')} 要還俾 ${personImg('B', 'inline')}：${moneyFigHtml(Math.abs(netAmount), currency, 'money-debt')}`,
     balanced: false,
   };
 }
 
 function explainTransactionNet(tx) {
-  const amount = formatMoney(tx.amount, tx.currency);
-  const half = formatMoney(tx.amount / 2, tx.currency);
-  const payer = PERSON_EMOJI[tx.payer];
+  const amount = escapeHtml(formatMoney(tx.amount, tx.currency));
+  const half = escapeHtml(formatMoney(tx.amount / 2, tx.currency));
+  const payer = personImg(tx.payer, 'inline');
   const split = SPLIT_LABELS[tx.split_mode] || tx.split_mode;
 
   let formula = '';
   if (isRepayTransaction(tx)) {
-    const payee = tx.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A;
+    const payee = personImg(tx.payer === 'A' ? 'B' : 'A', 'inline');
     formula = `${payer} 還咗 ${amount} 俾 ${payee}（唔計入消費，淨係用嚟還數）`;
   } else if (isLoanTransaction(tx)) {
-    const payee = PERSON_EMOJI[getLoanBorrower(tx)];
+    const payee = personImg(getLoanBorrower(tx), 'inline');
     formula = `${payer} 借咗 ${amount} 現金畀 ${payee}（唔計消費，淨係增加欠數）`;
   } else switch (tx.split_mode) {
     case 'FOR_A':
       formula =
         tx.payer === 'A'
-          ? `${PERSON_EMOJI.A} 自己嘅嘢，自己畀 → 唔使互相還`
-          : `${payer} 幫 ${PERSON_EMOJI.A} 畀咗 ${amount} → ${PERSON_EMOJI.A} 要還返 ${payer}`;
+          ? `${personImg('A', 'inline')} 自己嘅嘢，自己畀 → 唔使互相還`
+          : `${payer} 幫 ${personImg('A', 'inline')} 畀咗 ${amount} → ${personImg('A', 'inline')} 要還返 ${payer}`;
       break;
     case 'FOR_B':
       formula =
         tx.payer === 'B'
-          ? `${PERSON_EMOJI.B} 自己嘅嘢，自己畀 → 唔使互相還`
-          : `${payer} 幫 ${PERSON_EMOJI.B} 畀咗 ${amount} → ${PERSON_EMOJI.B} 要還返 ${payer}`;
+          ? `${personImg('B', 'inline')} 自己嘅嘢，自己畀 → 唔使互相還`
+          : `${payer} 幫 ${personImg('B', 'inline')} 畀咗 ${amount} → ${personImg('B', 'inline')} 要還返 ${payer}`;
       break;
     default:
       formula =
         tx.payer === 'A'
-          ? `${payer} 先畀 ${amount}，一人一半 → ${PERSON_EMOJI.B} 要還一半 ${half}`
-          : `${payer} 先畀 ${amount}，一人一半 → ${PERSON_EMOJI.A} 要還一半 ${half}`;
+          ? `${payer} 先畀 ${amount}，一人一半 → ${personImg('B', 'inline')} 要還一半 ${half}`
+          : `${payer} 先畀 ${amount}，一人一半 → ${personImg('A', 'inline')} 要還一半 ${half}`;
   }
 
   const net = tx.net_b_owes_a;
@@ -1590,25 +2196,25 @@ function explainTransactionNet(tx) {
   if (isRepayTransaction(tx)) {
     if (net > 0) {
       netClass = 'positive';
-      netLabel = `${PERSON_EMOJI.A} 還咗 ${formatMoney(Math.abs(net), tx.currency)}`;
+      netLabel = `${personImg('A', 'inline')} 還咗 ${escapeHtml(formatMoney(Math.abs(net), tx.currency))}`;
     } else if (net < 0) {
       netClass = 'negative';
-      netLabel = `${PERSON_EMOJI.B} 還咗 ${formatMoney(Math.abs(net), tx.currency)}`;
+      netLabel = `${personImg('B', 'inline')} 還咗 ${escapeHtml(formatMoney(Math.abs(net), tx.currency))}`;
     }
   } else if (isLoanTransaction(tx)) {
     if (net > 0) {
       netClass = 'positive';
-      netLabel = `${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A} ${formatMoney(Math.abs(net), tx.currency)}`;
+      netLabel = `${personImg('B', 'inline')} 欠 ${personImg('A', 'inline')} ${escapeHtml(formatMoney(Math.abs(net), tx.currency))}`;
     } else if (net < 0) {
       netClass = 'negative';
-      netLabel = `${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B} ${formatMoney(Math.abs(net), tx.currency)}`;
+      netLabel = `${personImg('A', 'inline')} 欠 ${personImg('B', 'inline')} ${escapeHtml(formatMoney(Math.abs(net), tx.currency))}`;
     }
   } else if (net > 0) {
     netClass = 'positive';
-    netLabel = `${PERSON_EMOJI.B} 欠 ${PERSON_EMOJI.A} ${formatMoney(net, tx.currency)}`;
+    netLabel = `${personImg('B', 'inline')} 欠 ${personImg('A', 'inline')} ${escapeHtml(formatMoney(net, tx.currency))}`;
   } else if (net < 0) {
     netClass = 'negative';
-    netLabel = `${PERSON_EMOJI.A} 欠 ${PERSON_EMOJI.B} ${formatMoney(Math.abs(net), tx.currency)}`;
+    netLabel = `${personImg('A', 'inline')} 欠 ${personImg('B', 'inline')} ${escapeHtml(formatMoney(Math.abs(net), tx.currency))}`;
   }
 
   return { formula, net, netClass, netLabel, split };
@@ -1616,8 +2222,7 @@ function explainTransactionNet(tx) {
 
 function buildTransactionDetailHtml(tx) {
   const { formula, netClass, netLabel } = explainTransactionNet(tx);
-  const splitLabel = SPLIT_LABELS[tx.split_mode] || tx.split_mode;
-  const payerLabel = PERSON_EMOJI[tx.payer] || tx.payer;
+  const payerLabel = personImg(tx.payer, 'inline');
   const timePart = tx.time ? ` · ${formatRecordTime(tx.time)}` : '';
   const desc = getTransactionTitle(tx);
   const rawDesc = String(tx.description || '').trim();
@@ -1625,16 +2230,8 @@ function buildTransactionDetailHtml(tx) {
   const curClass = tx.currency === 'JPY' ? 'jpy' : 'hkd';
   const isRepay = isRepayTransaction(tx);
   const isLoan = isLoanTransaction(tx);
-  const emojiHtml = isRepay
-    ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span>'
-    : isLoan
-      ? '💸'
-      : getCategoryEmoji(tx.category);
-  const splitHtml = isRepay
-    ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span> 還錢'
-    : isLoan
-      ? '💸 借錢'
-      : escapeHtml(splitLabel);
+  const emojiHtml = transactionIconHtml(tx, 'detail');
+  const splitHtml = splitTagHtml(tx);
 
   let html = `
     <div class="detail-hero">
@@ -1645,14 +2242,14 @@ function buildTransactionDetailHtml(tx) {
       </div>
     </div>
     <dl class="detail-grid">
-      <dt>📅 日期</dt>
+      <dt>${uiIconHtml('date', 'label')} 日期</dt>
       <dd>${escapeHtml(tx.date)}${escapeHtml(timePart)}</dd>
-      <dt>🏷️ 分類</dt>
+      <dt>${uiIconHtml('tag', 'label')} 分類</dt>
       <dd>${escapeHtml(getCategoryLabel(tx.category))}</dd>`;
 
   if (showDesc) {
     html += `
-      <dt>📝 描述</dt>
+      <dt>${uiIconHtml('notes', 'label')} 描述</dt>
       <dd>${escapeHtml(rawDesc)}</dd>`;
   }
 
@@ -1665,9 +2262,9 @@ function buildTransactionDetailHtml(tx) {
   }
 
   html += `
-      <dt>💳 邊個畀錢</dt>
+      <dt>${uiIconHtml('creditCard', 'label')} 邊個畀錢</dt>
       <dd>${payerLabel}</dd>
-      <dt>💸 樣嘢點計</dt>
+      <dt>${uiIconHtml('expense', 'label')} 樣嘢點計</dt>
       <dd>${splitHtml}</dd>`;
 
   if (isRepay || isLoan) {
@@ -1676,9 +2273,9 @@ function buildTransactionDetailHtml(tx) {
       <dd>${rawDesc ? escapeHtml(rawDesc) : '—'}</dd>`;
   } else {
     html += `
-      <dt>${PERSON_EMOJI.A} 分攤</dt>
+      <dt>${personImg('A', 'inline')} 分攤</dt>
       <dd>${moneyFigHtml(tx.a_share, tx.currency)}</dd>
-      <dt>${PERSON_EMOJI.B} 分攤</dt>
+      <dt>${personImg('B', 'inline')} 分攤</dt>
       <dd>${moneyFigHtml(tx.b_share, tx.currency)}</dd>`;
   }
 
@@ -1688,9 +2285,9 @@ function buildTransactionDetailHtml(tx) {
     html += `
     <div class="detail-formula">
       <div class="detail-formula-label">點解咁計</div>
-      <div class="detail-formula-text">${escapeHtml(formula)}</div>`;
+      <div class="detail-formula-text">${formula}</div>`;
     if (netLabel) {
-      html += `<div class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</div>`;
+      html += `<div class="explain-step-net ${netClass}">${netLabel}</div>`;
     }
     html += buildWhyCalcItemsHtml(tx);
     html += '</div>';
@@ -1698,9 +2295,9 @@ function buildTransactionDetailHtml(tx) {
     html += `
     <div class="detail-formula">
       <div class="detail-formula-label">點解咁計</div>
-      <div class="detail-formula-text">${escapeHtml(formula)}</div>`;
+      <div class="detail-formula-text">${formula}</div>`;
     if (netLabel) {
-      html += `<div class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</div>`;
+      html += `<div class="explain-step-net ${netClass}">${netLabel}</div>`;
     }
     html += '</div>';
   }
@@ -1756,7 +2353,7 @@ function bindDetailTriggers(container) {
   container.querySelectorAll('[data-detail-key]').forEach((el) => {
     const open = () => openDetailModal(el.dataset.detailKey);
     el.addEventListener('click', (e) => {
-      if (e.target.closest('.edit-btn')) return;
+      if (e.target.closest('.edit-btn, .tx-location-link')) return;
       open();
     });
     if (el.classList.contains('transaction-item') || el.classList.contains('help-pay-matrix-row')) {
@@ -1795,14 +2392,14 @@ function renderExplainStepItem(tx) {
       ? '<span class="explain-step-tag explain-step-tag-loan">借錢</span>'
       : '';
   const desc = isRepayTransaction(tx)
-    ? `${PERSON_EMOJI[tx.payer] || tx.payer} 還咗 ${formatMoney(tx.amount, tx.currency)} 俾 ${tx.payer === 'A' ? PERSON_EMOJI.B : PERSON_EMOJI.A}`
+    ? `${personImg(tx.payer, 'inline')} 還咗 ${escapeHtml(formatMoney(tx.amount, tx.currency))} 俾 ${personImg(tx.payer === 'A' ? 'B' : 'A', 'inline')}`
     : isLoanTransaction(tx)
-      ? `${PERSON_EMOJI[tx.payer] || tx.payer} 借咗 ${formatMoney(tx.amount, tx.currency)} 畀 ${PERSON_EMOJI[getLoanBorrower(tx)]}`
-      : getTransactionTitle(tx);
+      ? `${personImg(tx.payer, 'inline')} 借咗 ${escapeHtml(formatMoney(tx.amount, tx.currency))} 畀 ${personImg(getLoanBorrower(tx), 'inline')}`
+      : escapeHtml(getTransactionTitle(tx));
   return `<li class="explain-step-item">
     <button type="button" class="explain-step-btn" data-detail-key="${txKey}" aria-label="查看詳情">
-      <span class="explain-step-desc">${tag}${escapeHtml(desc)}</span>
-      <span class="explain-step-net ${netClass}">${escapeHtml(netLabel)}</span>
+      <span class="explain-step-desc">${tag}${desc}</span>
+      <span class="explain-step-net ${netClass}">${netLabel}</span>
       <span class="explain-step-chevron" aria-hidden="true">›</span>
     </button>
   </li>`;
@@ -1813,9 +2410,19 @@ function formatNetDirection(amount, currency) {
     return `大家唔欠 ${formatMoney(0, currency)}`;
   }
   if (amount > 0) {
-    return `${PERSON_EMOJI.B} 要還俾 ${PERSON_EMOJI.A} ${formatMoney(amount, currency)}`;
+    return `${personName('B')} 要還俾 ${personName('A')} ${formatMoney(amount, currency)}`;
   }
-  return `${PERSON_EMOJI.A} 要還俾 ${PERSON_EMOJI.B} ${formatMoney(Math.abs(amount), currency)}`;
+  return `${personName('A')} 要還俾 ${personName('B')} ${formatMoney(Math.abs(amount), currency)}`;
+}
+
+function formatNetDirectionHtml(amount, currency) {
+  if (isNegligibleMoney(amount, currency)) {
+    return `大家唔欠 ${moneyFigHtml(0, currency)}`;
+  }
+  if (amount > 0) {
+    return `${personImg('B', 'inline')} 要還俾 ${personImg('A', 'inline')} ${moneyFigHtml(amount, currency)}`;
+  }
+  return `${personImg('A', 'inline')} 要還俾 ${personImg('B', 'inline')} ${moneyFigHtml(Math.abs(amount), currency)}`;
 }
 
 /** 同方向未還清時：(對消後 − 已還) = 仲欠 */
@@ -1844,7 +2451,7 @@ function renderSettlementExplain() {
     const el = $(`#settlement-explain-${cur.toLowerCase()}`);
     if (!el) return;
 
-    const badge = cur === 'JPY' ? '💴' : '💵';
+    const badge = currencyUiIconHtml(cur, 'sm');
     const netTotal = calcSummary().net[cur];
     const settled = isNegligibleMoney(netTotal, cur);
     if (!settled) anyOpenDebt = true;
@@ -1852,8 +2459,8 @@ function renderSettlementExplain() {
     // 還清：提示去明細睇舊帳，並提供一鍵跳轉
     if (settled) {
       el.innerHTML = `<div class="explain-currency-label">${badge} ${cur}</div>
-        <p class="explain-empty">而家數清晒。想睇舊帳／還錢詳情，去「明細紀錄」撳嗰筆就得。</p>
-        <button type="button" class="btn btn-ghost btn-block explain-go-list-btn" data-go-list>📄 去明細紀錄</button>`;
+        <p class="explain-empty">而家數清晒。想睇舊帳／還錢詳情，去「紀錄」撳嗰筆就得。</p>
+        <button type="button" class="btn btn-ghost btn-block explain-go-list-btn" data-go-list>${uiIconHtml('list', 'btn')} 去紀錄</button>`;
       return;
     }
 
@@ -1869,6 +2476,9 @@ function renderSettlementExplain() {
     );
     const { bHelpedA, aHelpedB } = calcHelpPaidInCycle(cur);
     const helpNet = helpNetBOwesA(aHelpedB, bHelpedA);
+    const hasCashAdjust = loanContrib.length > 0 || repayContrib.length > 0;
+    const netDiffersFromHelp = !isNegligibleMoney(netTotal - helpNet, cur);
+    const showFinalSection = hasCashAdjust || netDiffersFromHelp;
 
     let html = `<div class="explain-currency-label">${badge} ${cur}</div>`;
     html += `<p class="explain-rules-compact">而家呢段未還清嘅數，點樣計出嚟</p>`;
@@ -1878,13 +2488,12 @@ function renderSettlementExplain() {
     if (expenseContrib.length === 0) {
       html += `<p class="explain-empty">未有要互相還嘅消費</p>`;
     } else {
-      const matrixHtml = buildHelpPayMatrixHtml(expenseContrib, cur);
+      const matrixHtml = buildHelpPayMatrixHtml(expenseContrib, cur, {
+        finalSectionFollows: showFinalSection,
+      });
       if (matrixHtml) html += matrixHtml;
     }
-    html += `<div class="explain-sum-line explain-sum-sub">
-      <div>${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀咗 ${escapeHtml(formatMoney(aHelpedB, cur))} · ${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀咗 ${escapeHtml(formatMoney(bHelpedA, cur))}</div>
-      <div><strong>對消後：</strong>${escapeHtml(formatNetDirection(helpNet, cur))}</div>
-    </div></div>`;
+    html += `</div>`;
 
     if (loanContrib.length) {
       html += `<div class="explain-section">
@@ -1898,11 +2507,13 @@ function renderSettlementExplain() {
         ${renderExplainStepList(repayContrib, cur, 'repay')}</div>`;
     }
 
-    const remainFormula = formatRemainAfterRepayFormula(helpNet, netTotal, cur);
-    html += `<div class="explain-sum-line explain-sum-final">
-      <div><strong>而家仲要還</strong>${remainFormula ? ` ${escapeHtml(remainFormula)}` : ''}</div>
-      <div class="explain-sum-result">${escapeHtml(formatNetDirection(netTotal, cur))}</div>
-    </div>`;
+    if (showFinalSection) {
+      const remainFormula = formatRemainAfterRepayFormula(helpNet, netTotal, cur);
+      html += `<div class="explain-sum-line explain-sum-final">
+        <div><strong>而家仲要還</strong>${remainFormula ? ` ${escapeHtml(remainFormula)}` : ''}</div>
+        <div class="explain-sum-result">${formatNetDirectionHtml(netTotal, cur)}</div>
+      </div>`;
+    }
 
     el.innerHTML = html;
     bindDetailTriggers(el);
@@ -1956,7 +2567,7 @@ function renderSummary() {
 
     const settled = isNegligibleMoney(net[cur], cur);
     const settlement = settlementText(net[cur], cur);
-    const badge = cur === 'JPY' ? '💴' : '💵';
+    const badge = currencyUiIconHtml(cur, 'sm');
     const el = $(`#settlement-${lower}`);
     el.innerHTML = `${badge} ${settlement.html}`;
     el.classList.remove('balanced', 'debt');
@@ -2189,46 +2800,51 @@ function renderTransactionList() {
   if (filtered.length === 0) {
     list.innerHTML =
       transactions.length === 0
-        ? '<li class="empty-state">尚無消費紀錄，快記第一筆吧 ✨</li>'
+        ? `<li class="empty-state">${uiIconHtml('empty', 'label')} 尚無消費紀錄，快記第一筆吧</li>`
         : hasDayRangeFilter()
-          ? `<li class="empty-state">${escapeHtml(formatDayRangeLabel())} 沒有紀錄 📅</li>`
-          : '<li class="empty-state">沒有符合篩選條件的紀錄 🔍</li>';
+          ? `<li class="empty-state">${uiIconHtml('empty', 'label')} ${escapeHtml(formatDayRangeLabel())} 沒有紀錄</li>`
+          : `<li class="empty-state">${uiIconHtml('empty', 'label')} 沒有符合篩選條件的紀錄</li>`;
     return;
   }
 
   list.innerHTML = meta.items
     .map((tx) => {
-      const emoji = getCategoryEmoji(tx.category);
       const curClass = tx.currency === 'JPY' ? 'jpy' : 'hkd';
-      const payerLabel = PERSON_EMOJI[tx.payer] || PERSON_EMOJI.A;
-      const splitLabel = SPLIT_LABELS[tx.split_mode] || tx.split_mode;
+      const payerLabel = personImg(tx.payer, 'inline');
       const txKey = getTxKey(tx);
       const isRepay = isRepayTransaction(tx);
       const isLoan = isLoanTransaction(tx);
       const specialClass = isRepay ? ' repay-item' : isLoan ? ' loan-item' : '';
-      const iconHtml = isRepay
-        ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span>'
-        : isLoan
-          ? '💸'
-          : emoji;
+      const iconHtml = transactionIconHtml(tx, 'list');
       const timePart = tx.time ? ` · ${formatRecordTime(tx.time)}` : '';
-      const compactHint = `${tx.date}${timePart} · ${PERSON_EMOJI[tx.payer] || PERSON_EMOJI.A} · ${tx.currency}`;
+      const compactTitleSuffix = compactTitleSuffixHtml(tx);
+      const compactHint = `${escapeHtml(tx.date)}${escapeHtml(timePart)} · ${escapeHtml(tx.currency)}`;
+
+      const useCombinedSplit = usesCombinedSplitTag(tx);
+      const tagsHtml = useCombinedSplit
+        ? `<span class="tx-tag split split-combined ${combinedSplitTagClass(tx)}">${combinedSplitTagHtml(tx)}</span>`
+        : `<span class="tx-tag payer" aria-label="${tx.payer === 'A' ? '男孩付款' : '女生付款'}">${payerLabel}</span>
+              <span class="tx-tag split">${splitTagHtml(tx)}</span>`;
 
       return `
         <li class="transaction-item${specialClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(getTransactionTitle(tx))} 詳情">
           <div class="tx-icon">${iconHtml}</div>
           <div class="tx-body">
-            <div class="tx-title">${escapeHtml(getTransactionTitle(tx))}</div>
-            <div class="tx-compact-hint">${escapeHtml(compactHint)}</div>
+            <div class="tx-title">
+              <span class="tx-title-text">${escapeHtml(getTransactionTitle(tx))}</span><span class="tx-title-badge">${compactTitleSuffix}</span>
+            </div>
+            <div class="tx-compact-hint">${compactHint}</div>
             <div class="tx-meta">${formatTransactionMeta(tx)}</div>
+            ${formatTransactionLocationHtml(tx)}
             <div class="tx-tags">
-              <span class="tx-tag payer" aria-label="${tx.payer === 'A' ? '男孩付款' : '女生付款'}">${payerLabel}</span>
-              <span class="tx-tag split">${isRepay ? '<span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span> 還錢' : isLoan ? '💸 借錢' : splitLabel}</span>
+              ${tagsHtml}
             </div>
           </div>
           <div class="tx-right">
-            <div class="tx-amount ${curClass}">${formatMoney(tx.amount, tx.currency)}</div>
-            <span class="tx-currency ${curClass}">${tx.currency}</span>
+            <div class="tx-amount-row">
+              <span class="tx-currency ${curClass}">${tx.currency}</span>
+              <span class="tx-amount ${curClass}">${formatMoney(tx.amount, tx.currency)}</span>
+            </div>
             <button type="button" class="btn-edit edit-btn" data-key="${escapeHtml(txKey)}" aria-label="編輯">
               <span class="btn-edit-icon" aria-hidden="true">✏️</span>
               <span class="btn-edit-text">編輯</span>
@@ -2294,11 +2910,12 @@ function renderPersonSpendList() {
 
   const person = personSpendView.person;
   const currency = personSpendView.currency;
-  const emoji = PERSON_EMOJI[person] || person;
   const rows = getPersonSpendRows();
   const total = rows.reduce((sum, tx) => sum + getPersonShare(tx, person), 0);
 
-  if (titleEl) titleEl.textContent = `${emoji} 用左明細 · ${currency}`;
+  if (titleEl) {
+    titleEl.innerHTML = `${personImg(person, 'inline')} 用左明細 · ${escapeHtml(currency)}`;
+  }
   if (totalEl) {
     totalEl.textContent = `合共用左 ${formatMoney(total, currency)} · ${rows.length} 筆`;
   }
@@ -2463,20 +3080,20 @@ function updateExpenseSplitHint() {
   const split = document.querySelector('#split-options input[name="split_mode"]:checked')?.value;
 
   if (split === 'FOR_B' && payer === 'A') {
-    hint.textContent = `${PERSON_EMOJI.A} 幫 ${PERSON_EMOJI.B} 畀 → ${PERSON_EMOJI.B} 要還全額`;
+    hint.innerHTML = `${personImg('A', 'inline')} 幫 ${personImg('B', 'inline')} 畀 → ${personImg('B', 'inline')} 要還全額`;
   } else if (split === 'FOR_A' && payer === 'B') {
-    hint.textContent = `${PERSON_EMOJI.B} 幫 ${PERSON_EMOJI.A} 畀 → ${PERSON_EMOJI.A} 要還全額`;
+    hint.innerHTML = `${personImg('B', 'inline')} 幫 ${personImg('A', 'inline')} 畀 → ${personImg('A', 'inline')} 要還全額`;
   } else if (split === 'SPLIT_5050') {
-    hint.textContent =
+    hint.innerHTML =
       payer === 'A'
-        ? `${PERSON_EMOJI.A} 畀，${PERSON_EMOJI.B} 還一半`
-        : `${PERSON_EMOJI.B} 畀，${PERSON_EMOJI.A} 還一半`;
+        ? `${personImg('A', 'inline')} 畀，${personImg('B', 'inline')} 還一半`
+        : `${personImg('B', 'inline')} 畀，${personImg('A', 'inline')} 還一半`;
   } else if (split === 'FOR_A' && payer === 'A') {
-    hint.textContent = `${PERSON_EMOJI.A} 自己嘅，自己畀 → 唔使還`;
+    hint.innerHTML = `${personImg('A', 'inline')} 自己嘅，自己畀 → 唔使還`;
   } else if (split === 'FOR_B' && payer === 'B') {
-    hint.textContent = `${PERSON_EMOJI.B} 自己嘅，自己畀 → 唔使還`;
+    hint.innerHTML = `${personImg('B', 'inline')} 自己嘅，自己畀 → 唔使還`;
   } else {
-    hint.textContent = '';
+    hint.innerHTML = '';
   }
 }
 
@@ -2553,7 +3170,9 @@ function closeModal(modal) {
 function setDeleteConfirmButtonLabel(mode) {
   const btn = $('#delete-confirm-btn');
   if (!btn) return;
-  btn.textContent = mode === 'clear-all' ? '確定清空 🗑️' : '確定刪除 🗑️';
+  btn.innerHTML = mode === 'clear-all'
+    ? `確定清空 ${uiIconHtml('delete', 'btn')}`
+    : `確定刪除 ${uiIconHtml('delete', 'btn')}`;
 }
 
 function openBudgetModal() {
@@ -2578,7 +3197,7 @@ function updateRepayModalView() {
   const submitBtn = $('#repay-submit-btn');
 
   if (!debt) {
-    contextEl.textContent = `${currency === 'JPY' ? '💴' : '💵'} 呢個幣別已經還清，可以轉第二個幣別`;
+    contextEl.innerHTML = `${currencyUiIconHtml(currency, 'sm')} 呢個幣別已經還清，可以轉第二個幣別`;
     amountEl.value = '';
     amountEl.disabled = true;
     payerEl.value = '';
@@ -2589,7 +3208,7 @@ function updateRepayModalView() {
   payerEl.value = debt.payer;
   amountEl.disabled = false;
   submitBtn.disabled = isMutating;
-  contextEl.textContent = `目前 ${PERSON_EMOJI[debt.payer]} 欠 ${PERSON_EMOJI[debt.payee]} ${formatMoney(debt.amount, currency)}`;
+  contextEl.innerHTML = `目前 ${personImg(debt.payer, 'inline')} 欠 ${personImg(debt.payee, 'inline')} ${escapeHtml(formatMoney(debt.amount, currency))}`;
   if (!amountEl.dataset.touched) {
     amountEl.value = formatMoneyInputPreset(debt.amount, currency);
   }
@@ -2625,7 +3244,7 @@ function updateLoanModalView() {
   const submitBtn = $('#loan-submit-btn');
 
   if (contextEl) {
-    contextEl.textContent = `${PERSON_EMOJI[lender]} 借現金畀 ${PERSON_EMOJI[borrower]}（借幾多欠幾多，唔會除二 · 唔計消費）· ${currency}`;
+    contextEl.innerHTML = `${personImg(lender, 'inline')} 借現金畀 ${personImg(borrower, 'inline')}（借幾多欠幾多，唔會除二 · 唔計消費）· ${escapeHtml(currency)}`;
   }
   updateMoneyPrefix($('#loan-amount-prefix'), currency);
   if (submitBtn) submitBtn.disabled = isMutating;
@@ -2694,7 +3313,7 @@ async function deleteTransactionRecord() {
   const title = tx ? getTransactionTitle(tx) : '此紀錄';
   const msg = $('#delete-confirm-message');
   const titleEl = $('#delete-confirm-title');
-  if (titleEl) titleEl.textContent = '🗑️ 確認刪除';
+  if (titleEl) titleEl.innerHTML = `${uiIconHtml('delete', 'title')} 確認刪除`;
   if (msg) {
     msg.textContent = `確定要刪除「${title}」？刪除後無法復原。`;
   }
@@ -2707,7 +3326,7 @@ function openClearAllDataConfirm() {
   const endpoint = getActiveEndpoint();
   const msg = $('#delete-confirm-message');
   const titleEl = $('#delete-confirm-title');
-  if (titleEl) titleEl.textContent = '🗑️ 清空全部紀錄';
+  if (titleEl) titleEl.innerHTML = `${uiIconHtml('delete', 'title')} 清空全部紀錄`;
   if (msg) {
     msg.textContent = `確定清空「${endpoint.label}」全部消費／還錢紀錄？預算會保留，刪除後無法復原。`;
   }
@@ -2742,7 +3361,7 @@ async function confirmDeleteTransaction() {
       updateSyncStatus('success', data.synced_at);
       closeModal(els.editModal);
       dismissDetailModal();
-      showToast('紀錄已刪除 🗑️', 'success');
+      showToast(`${uiIconHtml('delete', 'btn')} 紀錄已刪除`, 'success');
       recordSyncOk = true;
     }
   } catch (err) {
@@ -2769,7 +3388,7 @@ async function confirmClearAllData() {
       dismissDetailModal();
       closePersonSpendModal();
       closeModal(els.editModal);
-      showToast(`已清空「${getActiveEndpoint().label}」全部紀錄 🗑️`, 'success');
+      showToast(`${uiIconHtml('delete', 'btn')} 已清空「${getActiveEndpoint().label}」全部紀錄`, 'success');
     }
   } catch (err) {
     showToast(formatApiError(err), 'error');
@@ -2793,8 +3412,7 @@ function setupListFilters() {
   $('#btn-list-detail-toggle-top')?.addEventListener('click', toggleListDetail);
   $('#btn-list-detail-toggle-bottom')?.addEventListener('click', toggleListDetail);
 
-  setupListFilterToggle('#filter-currency-toggle', '#filter-currency', 'currency', 'currency', resetPage);
-  setupListFilterToggle('#filter-payer-toggle', '#filter-payer', 'payer', 'payer', resetPage);
+  setupQuickFilterToggles(resetPage);
 
   $('#filter-sort-amount').addEventListener('change', (e) => {
     listFilters.sortAmount = e.target.value;
@@ -2803,36 +3421,18 @@ function setupListFilters() {
 
   const onDayRangeChange = () => {
     setDayRange($('#filter-day-from')?.value || '', $('#filter-day-to')?.value || '');
+    syncQuickFilterChips();
     resetPage();
   };
   $('#filter-day-from').addEventListener('change', onDayRangeChange);
   $('#filter-day-to').addEventListener('change', onDayRangeChange);
-
-  document.querySelectorAll('#filter-day-toggle [data-day-scope]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.dayScope === 'today') {
-        setDayFilter(todayISO());
-      } else {
-        setDayRange('', '');
-      }
-      resetPage();
-    });
-  });
 
   $('#filter-sort-date').addEventListener('change', (e) => {
     listFilters.sortDate = e.target.value;
     resetPage();
   });
 
-  $('#filter-category').addEventListener('change', (e) => {
-    listFilters.category = e.target.value;
-    resetPage();
-  });
-
-  $('#filter-split').addEventListener('change', (e) => {
-    listFilters.splitMode = e.target.value;
-    resetPage();
-  });
+  setupListFilterPickers(resetPage);
 
   const onPageSizeChange = (e) => {
     listFilters.pageSize = e.target.value;
@@ -2927,8 +3527,8 @@ function setupEventListeners() {
   setupHelpPayPresets();
 
   setupListFilters();
-  setupCategorySelect('#expense-category', '#expense-custom-category-row', '#expense-custom-category');
-  setupCategorySelect('#edit-category', '#edit-custom-category-row', '#edit-custom-category');
+  setupCategoryPicker('#expense-category', '#expense-custom-category-row', '#expense-custom-category');
+  setupCategoryPicker('#edit-category', '#edit-custom-category-row', '#edit-custom-category');
 
   $('#btn-edit-budget').addEventListener('click', openBudgetModal);
   $('#btn-refresh').addEventListener('click', async () => {
@@ -3026,7 +3626,7 @@ function setupEventListeners() {
     }
 
     const note = $('#repay-note').value.trim();
-    const defaultDesc = `${PERSON_EMOJI[debt.payer]} 還俾 ${PERSON_EMOJI[debt.payee]}`;
+    const defaultDesc = '還錢';
     const repayAmount =
       inputAmount >= debt.amount - moneyEpsilon(currency) ? debt.exactAmount : inputAmount;
     const tx = {
@@ -3048,7 +3648,7 @@ function setupEventListeners() {
       const data = await syncAddTransaction(tx);
       if (applyServerData(data, applySeq)) {
         updateSyncStatus('success', data.synced_at);
-        showToast('還錢紀錄已同步 ✅', 'success');
+        showToast(`${uiIconHtml('confirm', 'btn')} 還錢紀錄已同步`, 'success');
         recordSyncOk = true;
       }
     } catch (err) {
@@ -3084,7 +3684,7 @@ function setupEventListeners() {
     const lender = getLoanLender();
     const borrower = lender === 'A' ? 'B' : 'A';
     const note = $('#loan-note').value.trim();
-    const defaultDesc = `${PERSON_EMOJI[lender]} 借錢畀 ${PERSON_EMOJI[borrower]}`;
+    const defaultDesc = '借錢';
     const tx = {
       date: todayISO(),
       category: LOAN_CATEGORY,
@@ -3104,7 +3704,7 @@ function setupEventListeners() {
       const data = await syncAddTransaction(tx);
       if (applyServerData(data, applySeq)) {
         updateSyncStatus('success', data.synced_at);
-        showToast('借錢紀錄已同步 💸', 'success');
+        showToast(`${uiIconHtml('expense', 'btn')} 借錢紀錄已同步`, 'success');
         recordSyncOk = true;
       }
     } catch (err) {
@@ -3164,6 +3764,8 @@ function setupEventListeners() {
         els.expenseForm.reset();
         els.expenseDate.value = todayISO();
         $('#expense-category').value = '餐飲-午餐';
+        syncCategoryPicker($('#expense-category-picker'), '餐飲-午餐');
+        setCategoryPickerOpen(getCategoryPickerWrap('expense-category'), false);
         $('#expense-custom-category-row').classList.add('hidden');
         $('#expense-custom-category').value = '';
         setToggleValue('#currency-toggle', '#expense-currency', 'currency', 'JPY');
@@ -3171,7 +3773,7 @@ function setupEventListeners() {
         setToggleValue('#payer-toggle', '#expense-payer', 'payer', 'A');
         syncHelpPayPresetUi();
         updateExpenseSplitHint();
-        showToast('已新增並同步至試算表 ✨', 'success');
+        showToast(`${uiIconHtml('success', 'btn')} 已新增並同步至試算表`, 'success');
         recordSyncOk = true;
       }
     } catch (err) {
@@ -3205,7 +3807,7 @@ function setupEventListeners() {
       if (applyServerData(data, applySeq)) {
         updateSyncStatus('success', data.synced_at);
         closeModal(els.budgetModal);
-        showToast('預算已同步至試算表 💾', 'success');
+        showToast(`${uiIconHtml('save', 'btn')} 預算已同步至試算表`, 'success');
       }
     } catch (err) {
       showToast(formatApiError(err), 'error');
@@ -3271,7 +3873,7 @@ function setupEventListeners() {
         updateSyncStatus('success', data.synced_at);
         closeModal(els.editModal);
         dismissDetailModal();
-        showToast('已更新並同步至試算表 💾', 'success');
+        showToast(`${uiIconHtml('save', 'btn')} 已更新並同步至試算表`, 'success');
         recordSyncOk = true;
       }
     } catch (err) {
@@ -3374,6 +3976,38 @@ function setupParticleEffects() {
 }
 
 /* ===== Init ===== */
+function playIconTapAnimation(icon) {
+  if (!icon) return;
+  icon.classList.remove('icon-tap-animate');
+  void icon.offsetWidth;
+  icon.classList.add('icon-tap-animate');
+  icon.addEventListener(
+    'animationend',
+    () => icon.classList.remove('icon-tap-animate'),
+    { once: true }
+  );
+}
+
+function resolveTapIcon(target) {
+  const icon = target.closest('.ui-icon, .person-avatar, .category-icon, .split-icon');
+  if (!icon) return null;
+  const host = icon.closest(
+    'button, .tab-btn, [role="option"], .filter-quick-chip, label.split-option, .category-picker-card'
+  );
+  return host ? icon : null;
+}
+
+function setupIconTapFeedback() {
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (e.button !== 0) return;
+      playIconTapAnimation(resolveTapIcon(e.target));
+    },
+    { passive: true }
+  );
+}
+
 async function init() {
   els.expenseDate.value = todayISO();
   initListDayFilter();
@@ -3385,6 +4019,7 @@ async function init() {
   setupPersonSpendUI();
   setupParticleEffects();
   setupThemeToggle();
+  setupIconTapFeedback();
 
   try {
     await fetchAllData();

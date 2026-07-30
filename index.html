@@ -8,7 +8,7 @@
   <title>✈️ 日本旅遊記帳 🇯🇵</title>
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="styles.css?v=20260729bu">
+  <link rel="stylesheet" href="styles.css?v=20260730dx">
 </head>
 <body>
   <header class="app-header">
@@ -36,21 +36,21 @@
       <section class="card form-card">
         <div class="home-spent-bar">
           <div class="home-spent-header">
-            <div class="home-spent-title">💸 目前用左</div>
+            <div class="home-spent-title"><img class="ui-icon ui-icon-label" src="icons/expense.png" alt="" aria-hidden="true"> 目前用左</div>
             <div class="currency-selector" aria-label="幣別篩選">
-              <button type="button" class="currency-label badge-jpy active" data-currency-view="jpy" aria-pressed="true">💴 JPY</button>
-              <button type="button" class="currency-label badge-hkd" data-currency-view="hkd" aria-pressed="false">💵 HKD</button>
-              <button type="button" class="currency-label badge-all" data-currency-view="all" aria-pressed="false">💱 全部</button>
+              <button type="button" class="currency-label badge-jpy currency-icon-only active" data-currency-view="jpy" aria-pressed="true" aria-label="JPY"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+              <button type="button" class="currency-label badge-hkd currency-icon-only" data-currency-view="hkd" aria-pressed="false" aria-label="HKD"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+              <button type="button" class="currency-label badge-all currency-icon-only" data-currency-view="all" aria-pressed="false" aria-label="全部幣別"><img class="ui-icon ui-icon-currency" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"></button>
             </div>
           </div>
           <div class="home-spent-currency" data-currency-panel="jpy">
             <div class="home-spent-row">
               <button type="button" class="home-spent-item person-spend-btn" data-person="A" data-currency="JPY" aria-label="睇男孩 JPY 用左明細">
-                <span class="person-emoji" aria-hidden="true">👦🏻</span>
+                <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="boy.png" alt=""></span>
                 <span class="stat-spent">用左 <strong class="spent-value" data-person="a" data-currency="jpy">0</strong></span>
               </button>
               <button type="button" class="home-spent-item person-spend-btn" data-person="B" data-currency="JPY" aria-label="睇女生 JPY 用左明細">
-                <span class="person-emoji" aria-hidden="true">👩🏻</span>
+                <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="girl.png" alt=""></span>
                 <span class="stat-spent">用左 <strong class="spent-value" data-person="b" data-currency="jpy">0</strong></span>
               </button>
             </div>
@@ -58,63 +58,72 @@
           <div class="home-spent-currency hidden" data-currency-panel="hkd">
             <div class="home-spent-row">
               <button type="button" class="home-spent-item person-spend-btn" data-person="A" data-currency="HKD" aria-label="睇男孩 HKD 用左明細">
-                <span class="person-emoji" aria-hidden="true">👦🏻</span>
+                <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="boy.png" alt=""></span>
                 <span class="stat-spent">用左 <strong class="spent-value" data-person="a" data-currency="hkd">0</strong></span>
               </button>
               <button type="button" class="home-spent-item person-spend-btn" data-person="B" data-currency="HKD" aria-label="睇女生 HKD 用左明細">
-                <span class="person-emoji" aria-hidden="true">👩🏻</span>
+                <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="girl.png" alt=""></span>
                 <span class="stat-spent">用左 <strong class="spent-value" data-person="b" data-currency="hkd">0</strong></span>
               </button>
             </div>
           </div>
         </div>
 
-        <h2>➕ 記一筆賬</h2>
+        <h2><img class="ui-icon ui-icon-title" src="icons/add-record.png?v=20260730de" alt="" aria-hidden="true"> 記一筆賬</h2>
         <form id="expense-form" novalidate>
         <div class="form-row">
-          <label for="expense-date">📅 日期</label>
+          <label for="expense-date"><img class="ui-icon ui-icon-label" src="icons/date.png" alt="" aria-hidden="true"> 日期</label>
           <input type="date" id="expense-date" name="date" required>
         </div>
 
         <div class="form-row">
-          <label for="expense-category">🏷️ 分類</label>
-          <select id="expense-category" name="category" required>
-            <optgroup label="🍱 餐飲">
-              <option value="餐飲-早餐">🌅 早餐</option>
-              <option value="餐飲-午餐" selected>☀️ 午餐</option>
-              <option value="餐飲-晚餐">🌙 晚餐</option>
-            </optgroup>
-            <option value="交通">🚗 交通</option>
-            <option value="住宿">🏨 住宿</option>
-            <option value="購物">🛍️ 購物</option>
-            <option value="景點">🎟️ 景點</option>
-            <option value="便利店">🏪 便利店</option>
-            <option value="雜項">📦 雜項</option>
-            <option value="__custom__">✏️ 自定</option>
-          </select>
+          <label id="expense-category-label"><img class="ui-icon ui-icon-label" src="icons/tag.png?v=20260730dc" alt="" aria-hidden="true"> 分類</label>
+          <input type="hidden" id="expense-category" name="category" value="餐飲-午餐">
+          <div class="category-picker-wrap" data-category-input="expense-category">
+            <button
+              type="button"
+              class="category-picker-trigger"
+              id="expense-category-trigger"
+              aria-expanded="false"
+              aria-controls="expense-category-picker"
+              aria-labelledby="expense-category-label"
+            >
+              <span class="category-picker-trigger-main">
+                <span class="category-picker-trigger-icon"></span>
+                <span class="category-picker-trigger-text">午餐</span>
+              </span>
+              <span class="category-picker-trigger-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div
+              class="category-picker hidden"
+              id="expense-category-picker"
+              role="radiogroup"
+              aria-labelledby="expense-category-label"
+            ></div>
+          </div>
         </div>
 
         <div class="form-row custom-category-row hidden" id="expense-custom-category-row">
-          <label for="expense-custom-category">✏️ 自定分類名稱</label>
+          <label for="expense-custom-category"><img class="ui-icon ui-icon-label" src="icons/edit.png" alt="" aria-hidden="true"> 自定分類名稱</label>
           <input type="text" id="expense-custom-category" placeholder="例：溫泉、門票">
         </div>
 
         <div class="form-row">
-          <label for="expense-description">📝 項目描述 <span class="label-optional">（選填）</span></label>
+          <label for="expense-description"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 項目描述 <span class="label-optional">（選填）</span></label>
           <input type="text" id="expense-description" name="description" placeholder="例：叙叙苑燒肉、Suica 增值">
         </div>
 
         <div class="form-row">
-          <label>💱 幣別</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
           <div class="toggle-group" id="currency-toggle">
-            <button type="button" class="toggle-btn active" data-currency="JPY">JPY 💴</button>
-            <button type="button" class="toggle-btn" data-currency="HKD">HKD 💵</button>
+            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
           </div>
           <input type="hidden" id="expense-currency" name="currency" value="JPY">
         </div>
 
         <div class="form-row">
-          <label for="expense-amount">💰 金額</label>
+          <label for="expense-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 金額</label>
           <div class="money-input-wrap">
             <span class="money-prefix prefix-jpy" id="expense-amount-prefix">¥</span>
             <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="expense-amount" name="amount" placeholder="0" required>
@@ -122,25 +131,25 @@
         </div>
 
         <div class="form-row">
-          <label>💳 邊個畀錢</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/credit-card.png" alt="" aria-hidden="true"> 邊個畀錢</label>
           <div class="toggle-group" id="payer-toggle">
-            <button type="button" class="toggle-btn person-btn active" data-payer="A" aria-label="男孩付款">👦🏻</button>
-            <button type="button" class="toggle-btn person-btn" data-payer="B" aria-label="女生付款">👩🏻</button>
+            <button type="button" class="toggle-btn person-btn active" data-payer="A" aria-label="男孩付款"><img class="person-avatar person-avatar-btn" src="boy.png" alt=""></button>
+            <button type="button" class="toggle-btn person-btn" data-payer="B" aria-label="女生付款"><img class="person-avatar person-avatar-btn" src="girl.png" alt=""></button>
           </div>
           <input type="hidden" id="expense-payer" name="payer" value="A">
         </div>
 
         <div class="form-row help-pay-preset-row">
-          <label>🤲 幫畀快捷</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/help-pay.png" alt="" aria-hidden="true"> 幫畀快捷</label>
           <div class="help-pay-presets">
-            <button type="button" class="help-pay-preset" data-help-preset="A_TO_B" aria-pressed="false">👦🏻 幫 👩🏻 畀</button>
-            <button type="button" class="help-pay-preset" data-help-preset="B_TO_A" aria-pressed="false">👩🏻 幫 👦🏻 畀</button>
+            <button type="button" class="help-pay-preset" data-help-preset="A_TO_B" aria-pressed="false"><span class="help-pay-preset-inner"><img class="person-avatar person-avatar-inline" src="boy.png" alt=""> 幫 <img class="person-avatar person-avatar-inline" src="girl.png" alt=""> 畀</span></button>
+            <button type="button" class="help-pay-preset" data-help-preset="B_TO_A" aria-pressed="false"><span class="help-pay-preset-inner"><img class="person-avatar person-avatar-inline" src="girl.png" alt=""> 幫 <img class="person-avatar person-avatar-inline" src="boy.png" alt=""> 畀</span></button>
           </div>
           <p class="form-hint" id="expense-split-hint" aria-live="polite"></p>
         </div>
 
         <div class="form-row">
-          <label>💸 樣嘢點計</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/expense.png" alt="" aria-hidden="true"> 樣嘢點計</label>
           <div class="split-options" id="split-options">
             <label class="split-option">
               <input type="radio" name="split_mode" value="SPLIT_5050" checked>
@@ -157,7 +166,7 @@
           </div>
         </div>
 
-        <button type="submit" class="btn btn-primary btn-block">新增消費明細 ✨</button>
+        <button type="submit" class="btn btn-primary btn-block">新增消費明細 <img class="ui-icon ui-icon-btn" src="icons/success.png?v=20260730dd" alt="" aria-hidden="true"></button>
       </form>
       </section>
     </div>
@@ -166,26 +175,29 @@
     <div id="tab-summary" class="tab-panel" role="tabpanel" aria-label="預算與花費總覽">
       <section class="card summary-card">
         <div class="section-header">
-          <h2>💰 預算與花費總覽</h2>
-          <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-budget">✏️ 改預算</button>
+          <h2><img class="ui-icon ui-icon-title" src="icons/savings.png" alt="" aria-hidden="true"> 預算與花費總覽</h2>
+          <div class="section-header-actions">
+            <button type="button" class="btn btn-loan btn-sm" id="btn-open-loan" aria-label="記錄借錢（現金）"><img class="ui-icon ui-icon-btn" src="icons/expense.png" alt="" aria-hidden="true"> 借錢</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="btn-edit-budget"><img class="ui-icon ui-icon-btn" src="icons/budget.png" alt="" aria-hidden="true"> 改預算</button>
+          </div>
         </div>
 
         <div class="currency-selector summary-currency-selector" aria-label="幣別篩選">
-          <button type="button" class="currency-label badge-jpy active" data-currency-view="jpy" aria-pressed="true">💴 JPY</button>
-          <button type="button" class="currency-label badge-hkd" data-currency-view="hkd" aria-pressed="false">💵 HKD</button>
-          <button type="button" class="currency-label badge-all" data-currency-view="all" aria-pressed="false">💱 全部</button>
+          <button type="button" class="currency-label badge-jpy currency-icon-only active" data-currency-view="jpy" aria-pressed="true" aria-label="JPY"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+          <button type="button" class="currency-label badge-hkd currency-icon-only" data-currency-view="hkd" aria-pressed="false" aria-label="HKD"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+          <button type="button" class="currency-label badge-all currency-icon-only" data-currency-view="all" aria-pressed="false" aria-label="全部幣別"><img class="ui-icon ui-icon-currency" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"></button>
         </div>
 
         <div class="summary-stats" data-currency-panel="jpy">
           <button type="button" class="stat-chip person-spend-btn" data-person="A" data-currency="JPY" aria-label="睇男孩 JPY 用左明細">
-            <span class="person-emoji" aria-hidden="true">👦🏻</span>
+            <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="boy.png" alt=""></span>
             <div class="stat-chip-body">
               <div class="stat-spent">用左 <strong class="spent-value" data-person="a" data-currency="jpy">0</strong></div>
               <div class="stat-remain remain-value" data-person="a" data-currency="jpy">剩餘 0</div>
             </div>
           </button>
           <button type="button" class="stat-chip person-spend-btn" data-person="B" data-currency="JPY" aria-label="睇女生 JPY 用左明細">
-            <span class="person-emoji" aria-hidden="true">👩🏻</span>
+            <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="girl.png" alt=""></span>
             <div class="stat-chip-body">
               <div class="stat-spent">用左 <strong class="spent-value" data-person="b" data-currency="jpy">0</strong></div>
               <div class="stat-remain remain-value" data-person="b" data-currency="jpy">剩餘 0</div>
@@ -195,14 +207,14 @@
 
         <div class="summary-stats hidden" data-currency-panel="hkd">
           <button type="button" class="stat-chip person-spend-btn" data-person="A" data-currency="HKD" aria-label="睇男孩 HKD 用左明細">
-            <span class="person-emoji" aria-hidden="true">👦🏻</span>
+            <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="boy.png" alt=""></span>
             <div class="stat-chip-body">
               <div class="stat-spent">用左 <strong class="spent-value" data-person="a" data-currency="hkd">0</strong></div>
               <div class="stat-remain remain-value" data-person="a" data-currency="hkd">剩餘 0</div>
             </div>
           </button>
           <button type="button" class="stat-chip person-spend-btn" data-person="B" data-currency="HKD" aria-label="睇女生 HKD 用左明細">
-            <span class="person-emoji" aria-hidden="true">👩🏻</span>
+            <span class="person-emoji" aria-hidden="true"><img class="person-avatar person-avatar-lg" src="girl.png" alt=""></span>
             <div class="stat-chip-body">
               <div class="stat-spent">用左 <strong class="spent-value" data-person="b" data-currency="hkd">0</strong></div>
               <div class="stat-remain remain-value" data-person="b" data-currency="hkd">剩餘 0</div>
@@ -212,24 +224,21 @@
 
         <div class="settlement-card" id="settlement-card">
           <div class="help-pay-block" id="help-pay-block">
-            <div class="help-pay-title">🤲 邊個幫邊個畀</div>
+            <div class="help-pay-title"><img class="ui-icon ui-icon-label" src="icons/help-pay.png" alt="" aria-hidden="true"> 邊個幫邊個畀</div>
             <div id="help-pay-jpy" class="help-pay-line" data-currency-panel="jpy">—</div>
             <div id="help-pay-hkd" class="help-pay-line hidden" data-currency-panel="hkd">—</div>
           </div>
-          <div class="settlement-header-row">
-            <div class="settlement-title"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span> 而家邊個欠邊個</div>
-            <button type="button" class="btn btn-loan btn-loan-compact" id="btn-open-loan" aria-label="記錄借錢（現金）">💸 借錢</button>
-          </div>
+          <div class="settlement-title"><img class="category-icon category-icon-btn" src="icons/repayment.png" alt="" aria-hidden="true"> 而家邊個欠邊個</div>
           <div id="settlement-jpy" class="settlement-line" data-currency-panel="jpy">—</div>
           <div id="settlement-hkd" class="settlement-line hidden" data-currency-panel="hkd">—</div>
           <div class="settlement-actions hidden" id="settlement-actions">
-            <button type="button" class="btn btn-primary btn-sm btn-block" id="btn-open-repay"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span> 記錄還錢</button>
+            <button type="button" class="btn btn-primary btn-sm btn-block" id="btn-open-repay"><img class="category-icon category-icon-btn" src="icons/repayment.png" alt="" aria-hidden="true"> 記錄還錢</button>
           </div>
         </div>
 
         <details class="settlement-explain-details" id="settlement-explain-details">
           <summary class="settlement-explain-summary">
-            <span class="settlement-explain-summary-label">📊 點計出嚟？</span>
+            <span class="settlement-explain-summary-label"><img class="ui-icon ui-icon-label" src="icons/budget.png" alt="" aria-hidden="true"> 點計出嚟？</span>
             <span class="explain-preview" id="settlement-explain-preview"></span>
           </summary>
           <div class="settlement-explain-inner">
@@ -240,46 +249,60 @@
       </section>
     </div>
 
-    <!-- Tab: 明細紀錄 -->
-    <div id="tab-list" class="tab-panel" role="tabpanel" aria-label="明細紀錄">
+    <!-- Tab: 紀錄 -->
+    <div id="tab-list" class="tab-panel" role="tabpanel" aria-label="紀錄">
       <section class="card list-card list-expanded" id="list-card">
       <div class="section-header">
-        <h2>📄 明細紀錄</h2>
+        <h2><img class="ui-icon ui-icon-title" src="icons/theme.png?v=20260730df" alt="" aria-hidden="true"> 紀錄</h2>
         <button type="button" class="btn btn-ghost btn-sm" id="btn-refresh">🔄 刷新</button>
       </div>
 
       <div class="list-controls">
         <div class="filter-groups">
           <div class="filter-quick-bar">
-            <div class="filter-quick-row">
-              <span class="filter-quick-label" aria-hidden="true">📅</span>
-              <div class="toggle-group filter-toggle-compact day-scope-toggle" id="filter-day-toggle" role="group" aria-label="日子範圍">
-                <button type="button" class="toggle-btn active" data-day-scope="all" aria-pressed="true">全部</button>
-                <button type="button" class="toggle-btn" data-day-scope="today" aria-pressed="false">今日</button>
+            <div class="filter-quick-grid">
+              <div class="filter-quick-chip-wrap">
+                <button
+                  type="button"
+                  class="filter-quick-chip filter-quick-chip-icon-only"
+                  id="filter-day-chip"
+                  aria-pressed="false"
+                >
+                  <span class="filter-quick-chip-icon" id="filter-day-chip-icon"><img class="ui-icon ui-icon-md" src="icons/date.png" alt="" aria-hidden="true"></span>
+                  <span class="filter-quick-chip-label" id="filter-day-chip-label">全部</span>
+                </button>
               </div>
-            </div>
-            <div class="filter-quick-row">
-              <span class="filter-quick-label" aria-hidden="true">💱</span>
-              <div class="toggle-group filter-toggle-compact" id="filter-currency-toggle" role="group" aria-label="幣別篩選">
-                <button type="button" class="toggle-btn active" data-currency="all" aria-pressed="true">全部</button>
-                <button type="button" class="toggle-btn" data-currency="JPY" aria-pressed="false">JPY</button>
-                <button type="button" class="toggle-btn" data-currency="HKD" aria-pressed="false">HKD</button>
+
+              <div class="filter-quick-chip-wrap">
+                <button
+                  type="button"
+                  class="filter-quick-chip filter-quick-chip-icon-only"
+                  id="filter-currency-chip"
+                  aria-pressed="false"
+                >
+                  <span class="filter-quick-chip-icon" id="filter-currency-chip-icon"><img class="ui-icon ui-icon-md" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"></span>
+                  <span class="filter-quick-chip-label">幣別</span>
+                </button>
+                <input type="hidden" id="filter-currency" value="">
               </div>
-              <input type="hidden" id="filter-currency" value="">
-            </div>
-            <div class="filter-quick-row">
-              <span class="filter-quick-label" aria-hidden="true">💳</span>
-              <div class="toggle-group filter-toggle-compact" id="filter-payer-toggle" role="group" aria-label="邊個畀錢">
-                <button type="button" class="toggle-btn active" data-payer="all" aria-pressed="true">全部</button>
-                <button type="button" class="toggle-btn" data-payer="A" aria-pressed="false" aria-label="男孩">👦🏻</button>
-                <button type="button" class="toggle-btn" data-payer="B" aria-pressed="false" aria-label="女孩">👩🏻</button>
+
+              <div class="filter-quick-chip-wrap">
+                <button
+                  type="button"
+                  class="filter-quick-chip filter-quick-chip-icon-only"
+                  id="filter-payer-chip"
+                  aria-pressed="false"
+                >
+                  <span class="filter-quick-chip-icon" id="filter-payer-chip-icon"><img class="ui-icon ui-icon-md" src="icons/credit-card.png" alt="" aria-hidden="true"></span>
+                  <span class="filter-quick-chip-label">邊個畀</span>
+                </button>
+                <input type="hidden" id="filter-payer" value="">
               </div>
-              <input type="hidden" id="filter-payer" value="">
             </div>
           </div>
 
           <details class="filter-panel" id="filter-panel-date">
-            <summary>📅 自訂日期範圍</summary>
+            <summary><img class="ui-icon ui-icon-sm" src="icons/date.png" alt="" aria-hidden="true"> 自訂日期範圍</summary>
             <div class="filter-panel-body filter-day-range-panel">
               <div class="filter-day-range">
                 <input type="date" id="filter-day-from" aria-label="開始日期">
@@ -291,43 +314,65 @@
 
           <details class="filter-panel" id="filter-panel-advanced">
             <summary>
-              <span class="filter-panel-title">🔍 分類 · 排序 · 分帳</span>
+              <span class="filter-panel-title">分類 · 排序 · 分帳</span>
               <span class="filter-active-hint hidden" id="filter-active-hint"></span>
             </summary>
             <div class="filter-panel-body">
               <div class="filter-grid filter-grid-advanced">
-                <div class="filter-item">
-                  <label for="filter-category">🏷️ 分類</label>
-                  <select id="filter-category">
-                    <option value="">全部分類</option>
-                    <option value="餐飲">🍱 餐飲（全部）</option>
-                    <option value="餐飲-早餐">🌅 早餐</option>
-                    <option value="餐飲-午餐">☀️ 午餐</option>
-                    <option value="餐飲-晚餐">🌙 晚餐</option>
-                    <option value="交通">🚗 交通</option>
-                    <option value="住宿">🏨 住宿</option>
-                    <option value="購物">🛍️ 購物</option>
-                    <option value="景點">🎟️ 景點</option>
-                    <option value="便利店">🏪 便利店</option>
-                    <option value="雜項">📦 雜項</option>
-                    <option value="還錢">🤝🏻 還錢</option>
-                    <option value="借錢">💸 借錢</option>
-                    <option value="__custom__">✏️ 自定</option>
-                  </select>
+                <div class="filter-item filter-item-picker">
+                  <label id="filter-category-label"><img class="ui-icon ui-icon-label" src="icons/tag.png?v=20260730dc" alt="" aria-hidden="true"> 分類</label>
+                  <input type="hidden" id="filter-category" value="">
+                  <div class="category-picker-wrap" data-filter-picker="filter-category">
+                    <button
+                      type="button"
+                      class="category-picker-trigger"
+                      id="filter-category-trigger"
+                      aria-expanded="false"
+                      aria-controls="filter-category-picker"
+                      aria-labelledby="filter-category-label"
+                    >
+                      <span class="category-picker-trigger-main">
+                        <span class="category-picker-trigger-icon"></span>
+                        <span class="category-picker-trigger-text">全部分類</span>
+                      </span>
+                      <span class="category-picker-trigger-chevron" aria-hidden="true">▾</span>
+                    </button>
+                    <div
+                      class="category-picker hidden"
+                      id="filter-category-picker"
+                      role="radiogroup"
+                      aria-labelledby="filter-category-label"
+                    ></div>
+                  </div>
+                </div>
+                <div class="filter-item filter-item-picker">
+                  <label id="filter-split-label"><img class="ui-icon ui-icon-label" src="icons/expense.png" alt="" aria-hidden="true"> 樣嘢點計</label>
+                  <input type="hidden" id="filter-split" value="">
+                  <div class="category-picker-wrap" data-filter-picker="filter-split">
+                    <button
+                      type="button"
+                      class="category-picker-trigger"
+                      id="filter-split-trigger"
+                      aria-expanded="false"
+                      aria-controls="filter-split-picker"
+                      aria-labelledby="filter-split-label"
+                    >
+                      <span class="category-picker-trigger-main">
+                        <span class="category-picker-trigger-icon"></span>
+                        <span class="category-picker-trigger-text">全部</span>
+                      </span>
+                      <span class="category-picker-trigger-chevron" aria-hidden="true">▾</span>
+                    </button>
+                    <div
+                      class="category-picker hidden"
+                      id="filter-split-picker"
+                      role="radiogroup"
+                      aria-labelledby="filter-split-label"
+                    ></div>
+                  </div>
                 </div>
                 <div class="filter-item">
-                  <label for="filter-split">💸 樣嘢點計</label>
-                  <select id="filter-split">
-                    <option value="">全部</option>
-                    <option value="SPLIT_5050">👥 一人一半</option>
-                    <option value="FOR_A">👦🏻 自己嘅</option>
-                    <option value="FOR_B">👩🏻 自己嘅</option>
-                    <option value="REPAY">🤝🏻 還錢</option>
-                    <option value="LOAN">💸 借錢</option>
-                  </select>
-                </div>
-                <div class="filter-item">
-                  <label for="filter-sort-amount">💰 價錢</label>
+                  <label for="filter-sort-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 價錢</label>
                   <select id="filter-sort-amount">
                     <option value="">預設</option>
                     <option value="asc">低至高 ↑</option>
@@ -335,7 +380,7 @@
                   </select>
                 </div>
                 <div class="filter-item">
-                  <label for="filter-sort-date">🕐 排序</label>
+                  <label for="filter-sort-date"><img class="ui-icon ui-icon-label" src="icons/sort-time.png" alt="" aria-hidden="true"> 排序</label>
                   <select id="filter-sort-date">
                     <option value="desc">最新優先</option>
                     <option value="asc">最舊優先</option>
@@ -402,16 +447,16 @@
 
   <nav class="tab-nav" role="tablist" aria-label="主選單">
     <button type="button" class="tab-btn" data-tab="summary" role="tab" aria-selected="false" aria-controls="tab-summary">
-      <span class="tab-icon">💰</span>
+      <span class="tab-icon"><img class="ui-icon ui-icon-tab" src="icons/savings.png" alt=""></span>
       <span>總覽</span>
     </button>
     <button type="button" class="tab-btn active" data-tab="form" role="tab" aria-selected="true" aria-controls="tab-form">
-      <span class="tab-icon">➕</span>
+      <span class="tab-icon"><img class="ui-icon ui-icon-tab" src="icons/add-record.png?v=20260730de" alt=""></span>
       <span>記賬</span>
     </button>
     <button type="button" class="tab-btn" data-tab="list" role="tab" aria-selected="false" aria-controls="tab-list">
-      <span class="tab-icon">📄</span>
-      <span>明細</span>
+      <span class="tab-icon"><img class="ui-icon ui-icon-tab" src="icons/theme.png?v=20260730df" alt=""></span>
+      <span>紀錄</span>
     </button>
   </nav>
 
@@ -420,32 +465,32 @@
     <div class="modal-backdrop" data-close-modal></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="repay-modal-title"><span class="emoji-handshake-badge"><span class="emoji-handshake" aria-hidden="true">🤝🏻</span></span>記錄還錢</h3>
+        <h3 id="repay-modal-title"><img class="category-icon category-icon-inline" src="icons/repayment.png" alt="" aria-hidden="true"> 記錄還錢</h3>
         <button type="button" class="modal-close" data-close-modal aria-label="關閉">&times;</button>
       </div>
       <form id="repay-form">
         <p class="repay-context" id="repay-context">—</p>
         <input type="hidden" id="repay-payer" value="">
         <div class="form-row">
-          <label>💱 幣別</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
           <div class="toggle-group" id="repay-currency-toggle">
-            <button type="button" class="toggle-btn active" data-currency="JPY">💴 JPY</button>
-            <button type="button" class="toggle-btn" data-currency="HKD">💵 HKD</button>
+            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
           </div>
           <input type="hidden" id="repay-currency" value="JPY">
         </div>
         <div class="form-row">
-          <label for="repay-amount">💰 還錢金額</label>
+          <label for="repay-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 還錢金額</label>
           <div class="money-input-wrap">
             <span class="money-prefix prefix-jpy" id="repay-amount-prefix">¥</span>
             <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="repay-amount" required>
           </div>
         </div>
         <div class="form-row">
-          <label for="repay-note">📝 備註 <span class="label-optional">（選填）</span></label>
+          <label for="repay-note"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 備註 <span class="label-optional">（選填）</span></label>
           <input type="text" id="repay-note" placeholder="例：現金、PayMe">
         </div>
-        <button type="submit" class="btn btn-primary btn-block" id="repay-submit-btn">確認還錢 ✅</button>
+        <button type="submit" class="btn btn-primary btn-block" id="repay-submit-btn">確認還錢 <img class="ui-icon ui-icon-btn" src="icons/confirm.png" alt="" aria-hidden="true"></button>
       </form>
     </div>
   </div>
@@ -455,39 +500,39 @@
     <div class="modal-backdrop" data-close-modal></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="loan-modal-title">💸 記錄借錢</h3>
+        <h3 id="loan-modal-title"><img class="category-icon category-icon-inline" src="icons/expense.png" alt="" aria-hidden="true"> 記錄借錢</h3>
         <button type="button" class="modal-close" data-close-modal aria-label="關閉">&times;</button>
       </div>
       <form id="loan-form">
         <p class="loan-context" id="loan-context">—</p>
         <div class="form-row">
-          <label>💱 幣別</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
           <div class="toggle-group" id="loan-currency-toggle">
-            <button type="button" class="toggle-btn active" data-currency="JPY">💴 JPY</button>
-            <button type="button" class="toggle-btn" data-currency="HKD">💵 HKD</button>
+            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
           </div>
           <input type="hidden" id="loan-currency" value="JPY">
         </div>
         <div class="form-row">
           <label>🔄 邊個借畀邊個</label>
           <div class="toggle-group" id="loan-direction-toggle">
-            <button type="button" class="toggle-btn active" data-direction="A_TO_B">👦🏻 借畀 👩🏻</button>
-            <button type="button" class="toggle-btn" data-direction="B_TO_A">👩🏻 借畀 👦🏻</button>
+            <button type="button" class="toggle-btn active" data-direction="A_TO_B"><span class="loan-direction-inner"><img class="person-avatar person-avatar-inline" src="boy.png" alt=""> 借畀 <img class="person-avatar person-avatar-inline" src="girl.png" alt=""></span></button>
+            <button type="button" class="toggle-btn" data-direction="B_TO_A"><span class="loan-direction-inner"><img class="person-avatar person-avatar-inline" src="girl.png" alt=""> 借畀 <img class="person-avatar person-avatar-inline" src="boy.png" alt=""></span></button>
           </div>
           <input type="hidden" id="loan-direction" value="A_TO_B">
         </div>
         <div class="form-row">
-          <label for="loan-amount">💰 借錢金額</label>
+          <label for="loan-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 借錢金額</label>
           <div class="money-input-wrap">
             <span class="money-prefix prefix-jpy" id="loan-amount-prefix">¥</span>
             <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="loan-amount" required>
           </div>
         </div>
         <div class="form-row">
-          <label for="loan-note">📝 備註 <span class="label-optional">（選填）</span></label>
+          <label for="loan-note"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 備註 <span class="label-optional">（選填）</span></label>
           <input type="text" id="loan-note" placeholder="例：現金、PayMe、應急">
         </div>
-        <button type="submit" class="btn btn-primary btn-block" id="loan-submit-btn">確認借錢 💸</button>
+        <button type="submit" class="btn btn-primary btn-block" id="loan-submit-btn">確認借錢 <img class="ui-icon ui-icon-btn" src="icons/expense.png" alt="" aria-hidden="true"></button>
       </form>
     </div>
   </div>
@@ -497,13 +542,13 @@
     <div class="modal-backdrop" data-close-modal></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="budget-modal-title">✏️ 修改初始預算</h3>
+        <h3 id="budget-modal-title"><img class="ui-icon ui-icon-title" src="icons/budget.png" alt="" aria-hidden="true"> 修改初始預算</h3>
         <button type="button" class="modal-close" data-close-modal aria-label="關閉">&times;</button>
       </div>
       <form id="budget-form">
         <div class="budget-grid">
           <div class="budget-person">
-            <h4><span class="person-emoji-inline" aria-label="男孩">👦🏻</span></h4>
+            <h4><img class="person-avatar person-avatar-inline" src="boy.png" alt="" aria-hidden="true"></h4>
             <label>JPY 預算
               <div class="money-input-wrap">
                 <span class="money-prefix prefix-jpy">¥</span>
@@ -518,7 +563,7 @@
             </label>
           </div>
           <div class="budget-person">
-            <h4><span class="person-emoji-inline" aria-label="女生">👩🏻</span></h4>
+            <h4><img class="person-avatar person-avatar-inline" src="girl.png" alt="" aria-hidden="true"></h4>
             <label>JPY 預算
               <div class="money-input-wrap">
                 <span class="money-prefix prefix-jpy">¥</span>
@@ -533,7 +578,7 @@
             </label>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary btn-block">儲存預算 💾</button>
+        <button type="submit" class="btn btn-primary btn-block">儲存預算 <img class="ui-icon ui-icon-btn" src="icons/save.png" alt="" aria-hidden="true"></button>
       </form>
     </div>
   </div>
@@ -550,62 +595,70 @@
         <input type="hidden" id="edit-transaction-id">
         <input type="hidden" id="edit-transaction-key">
         <div class="form-row">
-          <label for="edit-date">📅 日期</label>
+          <label for="edit-date"><img class="ui-icon ui-icon-label" src="icons/date.png" alt="" aria-hidden="true"> 日期</label>
           <input type="date" id="edit-date" required>
         </div>
         <div class="form-row">
-          <label for="edit-category">🏷️ 分類</label>
-          <select id="edit-category" required>
-            <optgroup label="🍱 餐飲">
-              <option value="餐飲">🍱 餐飲（其他）</option>
-              <option value="餐飲-早餐">🌅 早餐</option>
-              <option value="餐飲-午餐">☀️ 午餐</option>
-              <option value="餐飲-晚餐">🌙 晚餐</option>
-            </optgroup>
-            <option value="交通">🚗 交通</option>
-            <option value="住宿">🏨 住宿</option>
-            <option value="購物">🛍️ 購物</option>
-            <option value="景點">🎟️ 景點</option>
-            <option value="便利店">🏪 便利店</option>
-            <option value="雜項">📦 雜項</option>
-            <option value="__custom__">✏️ 自定</option>
-          </select>
+          <label id="edit-category-label"><img class="ui-icon ui-icon-label" src="icons/tag.png?v=20260730dc" alt="" aria-hidden="true"> 分類</label>
+          <input type="hidden" id="edit-category" value="餐飲-午餐">
+          <div class="category-picker-wrap" data-category-input="edit-category">
+            <button
+              type="button"
+              class="category-picker-trigger"
+              id="edit-category-trigger"
+              aria-expanded="false"
+              aria-controls="edit-category-picker"
+              aria-labelledby="edit-category-label"
+            >
+              <span class="category-picker-trigger-main">
+                <span class="category-picker-trigger-icon"></span>
+                <span class="category-picker-trigger-text">午餐</span>
+              </span>
+              <span class="category-picker-trigger-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div
+              class="category-picker hidden"
+              id="edit-category-picker"
+              role="radiogroup"
+              aria-labelledby="edit-category-label"
+            ></div>
+          </div>
         </div>
 
         <div class="form-row custom-category-row hidden" id="edit-custom-category-row">
-          <label for="edit-custom-category">✏️ 自定分類名稱</label>
+          <label for="edit-custom-category"><img class="ui-icon ui-icon-label" src="icons/edit.png" alt="" aria-hidden="true"> 自定分類名稱</label>
           <input type="text" id="edit-custom-category" placeholder="例：溫泉、門票">
         </div>
 
         <div class="form-row">
-          <label for="edit-description">📝 項目描述 <span class="label-optional">（選填）</span></label>
+          <label for="edit-description"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 項目描述 <span class="label-optional">（選填）</span></label>
           <input type="text" id="edit-description">
         </div>
         <div class="form-row">
-          <label>💱 幣別</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
           <div class="toggle-group" id="edit-currency-toggle">
-            <button type="button" class="toggle-btn active" data-currency="JPY">JPY 💴</button>
-            <button type="button" class="toggle-btn" data-currency="HKD">HKD 💵</button>
+            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
           </div>
           <input type="hidden" id="edit-currency" value="JPY">
         </div>
         <div class="form-row">
-          <label for="edit-amount">💰 金額</label>
+          <label for="edit-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 金額</label>
           <div class="money-input-wrap">
             <span class="money-prefix prefix-jpy" id="edit-amount-prefix">¥</span>
             <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="edit-amount" required>
           </div>
         </div>
         <div class="form-row" id="edit-payer-row">
-          <label>💳 邊個畀錢</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/credit-card.png" alt="" aria-hidden="true"> 邊個畀錢</label>
           <div class="toggle-group" id="edit-payer-toggle">
-            <button type="button" class="toggle-btn person-btn active" data-payer="A" aria-label="男孩付款">👦🏻</button>
-            <button type="button" class="toggle-btn person-btn" data-payer="B" aria-label="女生付款">👩🏻</button>
+            <button type="button" class="toggle-btn person-btn active" data-payer="A" aria-label="男孩付款"><img class="person-avatar person-avatar-btn" src="boy.png" alt=""></button>
+            <button type="button" class="toggle-btn person-btn" data-payer="B" aria-label="女生付款"><img class="person-avatar person-avatar-btn" src="girl.png" alt=""></button>
           </div>
           <input type="hidden" id="edit-payer" value="A">
         </div>
         <div class="form-row" id="edit-split-row">
-          <label>💸 樣嘢點計</label>
+          <label><img class="ui-icon ui-icon-label" src="icons/expense.png" alt="" aria-hidden="true"> 樣嘢點計</label>
           <div class="split-options" id="edit-split-options">
             <label class="split-option">
               <input type="radio" name="edit_split_mode" value="SPLIT_5050">
@@ -622,8 +675,8 @@
           </div>
         </div>
         <div class="edit-form-actions">
-          <button type="button" class="btn btn-danger" id="edit-delete-btn">🗑️ 刪除紀錄</button>
-          <button type="submit" class="btn btn-primary">儲存修改 💾</button>
+          <button type="button" class="btn btn-danger" id="edit-delete-btn"><img class="ui-icon ui-icon-btn" src="icons/delete.png" alt="" aria-hidden="true"> 刪除紀錄</button>
+          <button type="submit" class="btn btn-primary">儲存修改 <img class="ui-icon ui-icon-btn" src="icons/save.png" alt="" aria-hidden="true"></button>
         </div>
       </form>
     </div>
@@ -640,16 +693,16 @@
       <p id="person-spend-total" class="person-spend-total">—</p>
       <div class="person-spend-filters">
         <div class="filter-item">
-          <label for="person-spend-category">🏷️ 分類</label>
+          <label for="person-spend-category"><img class="ui-icon ui-icon-label" src="icons/tag.png?v=20260730dc" alt="" aria-hidden="true"> 分類</label>
           <select id="person-spend-category">
             <option value="">全部</option>
-            <option value="餐飲">🍱 餐飲</option>
-            <option value="交通">🚗 交通</option>
-            <option value="住宿">🏨 住宿</option>
-            <option value="購物">🛍️ 購物</option>
-            <option value="景點">🎟️ 景點</option>
-            <option value="便利店">🏪 便利店</option>
-            <option value="雜項">📦 雜項</option>
+            <option value="餐飲">餐飲</option>
+            <option value="交通">交通</option>
+            <option value="住宿">住宿</option>
+            <option value="購物">購物</option>
+            <option value="景點">景點</option>
+            <option value="便利店">便利店</option>
+            <option value="雜項">雜項</option>
           </select>
         </div>
         <div class="filter-item">
@@ -671,7 +724,7 @@
     <div class="modal-backdrop" data-close-detail></div>
     <div class="modal-content modal-content-detail">
       <div class="modal-header">
-        <h3 id="detail-modal-title">📋 紀錄詳情</h3>
+        <h3 id="detail-modal-title"><img class="ui-icon ui-icon-title" src="icons/detail.png" alt="" aria-hidden="true"> 紀錄詳情</h3>
         <button type="button" class="modal-close" data-close-detail aria-label="關閉">&times;</button>
       </div>
       <div id="detail-modal-body" class="detail-body"></div>
@@ -684,13 +737,13 @@
     <div class="modal-backdrop" data-close-delete-confirm></div>
     <div class="modal-content modal-content-confirm">
       <div class="modal-header">
-        <h3 id="delete-confirm-title">🗑️ 確認刪除</h3>
+        <h3 id="delete-confirm-title"><img class="ui-icon ui-icon-title" src="icons/delete.png" alt="" aria-hidden="true"> 確認刪除</h3>
         <button type="button" class="modal-close" data-close-delete-confirm aria-label="關閉">&times;</button>
       </div>
       <p id="delete-confirm-message" class="delete-confirm-message">確定要刪除此紀錄？刪除後無法復原。</p>
       <div class="delete-confirm-actions">
         <button type="button" class="btn btn-ghost btn-block" data-close-delete-confirm>取消</button>
-        <button type="button" class="btn btn-danger btn-block" id="delete-confirm-btn">確定刪除 🗑️</button>
+        <button type="button" class="btn btn-danger btn-block" id="delete-confirm-btn">確定刪除 <img class="ui-icon ui-icon-btn" src="icons/delete.png" alt="" aria-hidden="true"></button>
       </div>
     </div>
   </div>
@@ -712,17 +765,17 @@
           <div class="theme-switcher-desc" id="theme-switcher-desc">目前：日間模式</div>
         </div>
         <button type="button" class="btn btn-cyber" id="btn-toggle-theme" aria-pressed="false">
-          啟用賽博龐克 🌙
+          <img class="ui-icon ui-icon-btn" src="icons/list.png?v=20260730df" alt="" aria-hidden="true"> 啟用賽博龐克
         </button>
       </div>
       <div class="sheet-danger-zone">
         <div class="sheet-danger-title">危險操作</div>
         <p class="sheet-danger-hint" id="sheet-clear-hint">清空<strong>目前連線</strong>試算表嘅全部消費／還錢紀錄（預算保留）。刪除後無法復原。</p>
-        <button type="button" class="btn btn-danger btn-block" id="btn-clear-all-data">🗑️ 一鍵清空全部紀錄</button>
+        <button type="button" class="btn btn-danger btn-block" id="btn-clear-all-data"><img class="ui-icon ui-icon-btn" src="icons/delete.png" alt="" aria-hidden="true"> 一鍵清空全部紀錄</button>
       </div>
       <div class="sheet-switcher-actions">
         <button type="button" class="btn btn-ghost btn-block" data-close-modal>維持目前</button>
-        <button type="button" class="btn btn-primary btn-block" id="sheet-switcher-confirm">改用測試試算表 ✅</button>
+        <button type="button" class="btn btn-primary btn-block" id="sheet-switcher-confirm">改用測試試算表 <img class="ui-icon ui-icon-btn" src="icons/confirm.png" alt="" aria-hidden="true"></button>
       </div>
     </div>
   </div>
@@ -736,6 +789,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260729bu"></script>
+  <script src="app.js?v=20260730dw"></script>
 </body>
 </html>
