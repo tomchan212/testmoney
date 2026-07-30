@@ -1283,48 +1283,9 @@ button.currency-label.badge-all.active {
 }
 
 .settlement-line {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  min-width: 0;
-  max-width: 100%;
   font-size: var(--type-body);
   padding: 0.15rem 0;
   line-height: 1.5;
-}
-
-.settlement-line-head {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.settlement-line-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.settlement-who {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.15rem;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.settlement-amount {
-  display: block;
-  min-width: 0;
-  max-width: 100%;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-  word-break: break-word;
 }
 
 .settlement-line .person-avatar-inline {
@@ -1405,8 +1366,30 @@ button.currency-label.badge-all.active {
 }
 
 .help-pay-net {
+  flex-direction: column;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  white-space: normal;
+  gap: 0.15rem;
   font-weight: 600;
   font-size: 0.8rem;
+}
+
+.help-pay-net-label {
+  display: block;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.help-pay-net-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .help-pay-net .money-fig {
@@ -2157,23 +2140,6 @@ button.currency-label.badge-all.active {
 .summary-icon-block .help-pay-row {
   font-size: var(--type-body);
   line-height: 1.5;
-}
-
-@media (max-width: 499px) {
-  .summary-icon-block .settlement-line .person-avatar-inline {
-    width: 1.45em;
-    height: 1.45em;
-    min-width: 1.45em;
-    min-height: 1.45em;
-  }
-
-  .settlement-card {
-    overflow: hidden;
-  }
-
-  .summary-icon-block-body {
-    overflow: hidden;
-  }
 }
 
 .summary-icon-block .help-pay-net {
