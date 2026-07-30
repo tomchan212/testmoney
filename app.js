@@ -1056,6 +1056,9 @@ function setupListFilterPickers(onChange) {
   });
   setupFilterIconPicker('filter-split', FILTER_SPLIT_ITEMS, (value) => {
     listFilters.splitMode = value;
+    if (value === 'SPLIT_5050') {
+      listFilters.payer = '';
+    }
     syncQuickFilterChips();
     onChange?.();
   });
@@ -1236,12 +1239,31 @@ function cycleQuickCurrencyFilter(onChange) {
   onChange();
 }
 
+function getQuickPayerChipMode() {
+  if (listFilters.splitMode === 'SPLIT_5050' && !listFilters.payer) return 'SPLIT_5050';
+  if (listFilters.payer === 'A' || listFilters.payer === 'B') return listFilters.payer;
+  return '';
+}
+
 function cycleQuickPayerFilter(onChange) {
-  const order = ['', 'A', 'B'];
-  const cur = listFilters.payer || '';
+  const order = ['', 'A', 'B', 'SPLIT_5050'];
+  const cur = getQuickPayerChipMode();
   const next = order[(order.indexOf(cur) + 1) % order.length];
-  listFilters.payer = next;
+
+  if (next === 'SPLIT_5050') {
+    listFilters.payer = '';
+    listFilters.splitMode = 'SPLIT_5050';
+  } else if (next === 'A' || next === 'B') {
+    listFilters.payer = next;
+    if (listFilters.splitMode === 'SPLIT_5050') listFilters.splitMode = '';
+  } else {
+    listFilters.payer = '';
+    if (listFilters.splitMode === 'SPLIT_5050') listFilters.splitMode = '';
+  }
+
+  syncSplitFilterPicker();
   syncQuickFilterChips();
+  updateFilterActiveSummary();
   onChange();
 }
 
@@ -1252,16 +1274,7 @@ function syncSplitFilterPicker() {
   if (wrap) syncFilterPicker(wrap, FILTER_SPLIT_ITEMS, listFilters.splitMode || '');
 }
 
-function cycleQuickSplit5050Filter(onChange) {
-  listFilters.splitMode = listFilters.splitMode === 'SPLIT_5050' ? '' : 'SPLIT_5050';
-  syncSplitFilterPicker();
-  syncQuickFilterChips();
-  updateFilterActiveSummary();
-  onChange();
-}
-
 function syncQuickFilterChips() {
-  const dayScope = getQuickDayScope();
   const dayLabelEl = $('#filter-day-chip-label');
   const dayIconEl = $('#filter-day-chip-icon');
   const dayChip = $('#filter-day-chip');
@@ -1284,48 +1297,43 @@ function syncQuickFilterChips() {
   currencyChip?.setAttribute('aria-pressed', currency ? 'true' : 'false');
   currencyChip?.setAttribute('aria-label', currency ? `幣別：${currency}` : '幣別：全部');
 
-  const payer = listFilters.payer || '';
+  const payerMode = getQuickPayerChipMode();
   const payerIconEl = $('#filter-payer-chip-icon');
+  const payerLabelEl = $('#filter-payer-chip-label');
   const payerChip = $('#filter-payer-chip');
-  if (payerIconEl) {
-    if (payer === 'A') payerIconEl.innerHTML = personImg('A', 'md');
-    else if (payer === 'B') payerIconEl.innerHTML = personImg('B', 'md');
-    else payerIconEl.innerHTML = uiIconHtml('creditCard', 'md');
+  if (payerMode === 'SPLIT_5050') {
+    if (payerIconEl) {
+      payerIconEl.innerHTML =
+        splitIconHtml('SPLIT_5050', 'md', '一人一半') || uiIconHtml('expense', 'md');
+    }
+    if (payerLabelEl) payerLabelEl.textContent = '一人一半';
+    payerChip?.classList.toggle('is-active', true);
+    payerChip?.setAttribute('aria-pressed', 'true');
+    payerChip?.setAttribute('aria-label', '一人一半：顯示全部一人一半紀錄');
+  } else if (payerMode === 'A' || payerMode === 'B') {
+    if (payerIconEl) payerIconEl.innerHTML = personImg(payerMode, 'md');
+    if (payerLabelEl) payerLabelEl.textContent = '邊個畀';
+    payerChip?.classList.toggle('is-active', true);
+    payerChip?.setAttribute('aria-pressed', 'true');
+    payerChip?.setAttribute('aria-label', payerMode === 'A' ? '邊個畀：男孩' : '邊個畀：女生');
+  } else {
+    if (payerIconEl) payerIconEl.innerHTML = uiIconHtml('creditCard', 'md');
+    if (payerLabelEl) payerLabelEl.textContent = '邊個畀';
+    payerChip?.classList.toggle('is-active', false);
+    payerChip?.setAttribute('aria-pressed', 'false');
+    payerChip?.setAttribute('aria-label', '邊個畀：全部');
   }
-  payerChip?.classList.toggle('is-active', Boolean(payer));
-  payerChip?.setAttribute('aria-pressed', payer ? 'true' : 'false');
-  payerChip?.setAttribute(
-    'aria-label',
-    payer === 'A' ? '邊個畀：男孩' : payer === 'B' ? '邊個畀：女生' : '邊個畀：全部'
-  );
-
-  const split5050Active = listFilters.splitMode === 'SPLIT_5050';
-  const splitIconEl = $('#filter-split5050-chip-icon');
-  const splitChip = $('#filter-split5050-chip');
-  if (splitIconEl) {
-    splitIconEl.innerHTML =
-      splitIconHtml('SPLIT_5050', 'md', '一人一半') || uiIconHtml('expense', 'md');
-  }
-  splitChip?.classList.toggle('is-active', split5050Active);
-  splitChip?.setAttribute('aria-pressed', split5050Active ? 'true' : 'false');
-  splitChip?.setAttribute(
-    'aria-label',
-    split5050Active ? '一人一半：已篩選' : '一人一半：全部'
-  );
 
   const currencyHidden = $('#filter-currency');
   if (currencyHidden) currencyHidden.value = currency;
   const payerHidden = $('#filter-payer');
-  if (payerHidden) payerHidden.value = payer;
-  const splitHidden = $('#filter-split5050');
-  if (splitHidden) splitHidden.value = split5050Active ? 'SPLIT_5050' : '';
+  if (payerHidden) payerHidden.value = listFilters.payer || '';
 }
 
 function setupQuickFilterToggles(onChange) {
   $('#filter-day-chip')?.addEventListener('click', () => cycleQuickDayFilter(onChange));
   $('#filter-currency-chip')?.addEventListener('click', () => cycleQuickCurrencyFilter(onChange));
   $('#filter-payer-chip')?.addEventListener('click', () => cycleQuickPayerFilter(onChange));
-  $('#filter-split5050-chip')?.addEventListener('click', () => cycleQuickSplit5050Filter(onChange));
   syncQuickFilterChips();
 }
 
