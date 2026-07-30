@@ -708,9 +708,12 @@ function buildTransactionItemHtml(tx) {
   const isLoan = isLoanTransaction(tx);
   const specialClass = isRepay ? ' repay-item' : isLoan ? ' loan-item' : '';
   const title = getTransactionTitle(tx);
+  const iconHtml = transactionIconHtml(tx, 'list');
 
   return `
     <li class="transaction-item${specialClass}" data-key="${escapeHtml(txKey)}" data-detail-key="${escapeHtml(txKey)}" tabindex="0" role="button" aria-label="查看 ${escapeHtml(title)} 詳情">
+      <div class="tx-icon">${iconHtml}</div>
+      <div class="tx-record-body">
       <div class="tx-record-primary">
         <span class="tx-record-time">${escapeHtml(formatListRecordTime(tx))}</span>
         <span class="tx-record-desc-group">
@@ -729,6 +732,7 @@ function buildTransactionItemHtml(tx) {
           <span class="btn-edit-icon" aria-hidden="true">✏️</span>
           <span class="btn-edit-text">編輯</span>
         </button>
+      </div>
       </div>
     </li>`;
 }
@@ -2670,8 +2674,9 @@ function renderSettlementExplain() {
 
 function updateExplainPreview() {
   const el = $('#settlement-explain-preview');
+  const details = $('#settlement-explain-details');
   if (!el) return;
-  el.textContent = '打開睇睇';
+  el.textContent = details?.open ? '收起' : '打開睇睇';
 }
 
 /* ===== Render ===== */
@@ -3442,6 +3447,7 @@ function setupListFilters() {
   const toggleListDetail = () => applyListViewExpanded(!listViewExpanded);
   $('#btn-list-detail-toggle-top')?.addEventListener('click', toggleListDetail);
   $('#btn-list-detail-toggle-bottom')?.addEventListener('click', toggleListDetail);
+  $('#settlement-explain-details')?.addEventListener('toggle', updateExplainPreview);
 
   setupQuickFilterToggles(resetPage);
 

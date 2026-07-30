@@ -8,7 +8,7 @@
   <title>✈️ 日本旅遊記帳 🇯🇵</title>
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="apple-touch-icon" href="icon.png">
-  <link rel="stylesheet" href="styles.css?v=20260730ed">
+  <link rel="stylesheet" href="styles.css?v=20260730eo">
 </head>
 <body>
   <header class="app-header">
@@ -69,17 +69,21 @@
           </div>
         </div>
 
-        <h2><img class="ui-icon ui-icon-title" src="icons/add-record.png?v=20260730de" alt="" aria-hidden="true"> 記一筆賬</h2>
         <form id="expense-form" novalidate>
-        <div class="form-row">
-          <label for="expense-date"><img class="ui-icon ui-icon-label" src="icons/date.png" alt="" aria-hidden="true"> 日期</label>
-          <input type="date" id="expense-date" name="date" required>
+        <div class="form-row form-row-icon-field">
+          <label for="expense-date" class="sr-only">日期</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/date.png" alt=""></span>
+            <input type="date" id="expense-date" name="date" required>
+          </div>
         </div>
 
-        <div class="form-row">
-          <label id="expense-category-label"><img class="ui-icon ui-icon-label" src="icons/tag.png?v=20260730dc" alt="" aria-hidden="true"> 分類</label>
-          <input type="hidden" id="expense-category" name="category" value="餐飲-午餐">
-          <div class="category-picker-wrap" data-category-input="expense-category">
+        <div class="form-row form-row-icon-field">
+          <span id="expense-category-label" class="sr-only">分類</span>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/tag.png?v=20260730dc" alt=""></span>
+            <div class="category-picker-wrap form-icon-field-control" data-category-input="expense-category">
+            <input type="hidden" id="expense-category" name="category" value="餐飲-午餐">
             <button
               type="button"
               class="category-picker-trigger"
@@ -101,6 +105,7 @@
               aria-labelledby="expense-category-label"
             ></div>
           </div>
+          </div>
         </div>
 
         <div class="form-row custom-category-row hidden" id="expense-custom-category-row">
@@ -108,9 +113,12 @@
           <input type="text" id="expense-custom-category" placeholder="例：溫泉、門票">
         </div>
 
-        <div class="form-row">
-          <label for="expense-description"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 項目描述 <span class="label-optional">（選填）</span></label>
-          <input type="text" id="expense-description" name="description" placeholder="例：叙叙苑燒肉、Suica 增值">
+        <div class="form-row form-row-icon-field">
+          <label for="expense-description" class="sr-only">項目描述（選填）</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/notes.png?v=20260730dc" alt=""></span>
+            <input type="text" id="expense-description" name="description" placeholder="例：叙叙苑燒肉、Suica 增值">
+          </div>
         </div>
 
         <div class="form-row expense-essentials-row">
@@ -198,23 +206,34 @@
         </div>
 
         <div class="settlement-card" id="settlement-card">
-          <div class="help-pay-block" id="help-pay-block">
-            <div class="help-pay-title"><img class="ui-icon ui-icon-label" src="icons/help-pay.png" alt="" aria-hidden="true"> 邊個幫邊個畀</div>
-            <div id="help-pay-jpy" class="help-pay-line" data-currency-panel="jpy">—</div>
-            <div id="help-pay-hkd" class="help-pay-line hidden" data-currency-panel="hkd">—</div>
+          <div class="help-pay-block summary-icon-block" id="help-pay-block">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/help-pay.png" alt=""></span>
+            <div class="summary-icon-block-body">
+              <div class="sr-only">邊個幫邊個畀</div>
+              <div id="help-pay-jpy" class="help-pay-line" data-currency-panel="jpy">—</div>
+              <div id="help-pay-hkd" class="help-pay-line hidden" data-currency-panel="hkd">—</div>
+            </div>
           </div>
-          <div class="settlement-title"><img class="category-icon category-icon-btn" src="icons/repayment.png" alt="" aria-hidden="true"> 而家邊個欠邊個</div>
-          <div id="settlement-jpy" class="settlement-line" data-currency-panel="jpy">—</div>
-          <div id="settlement-hkd" class="settlement-line hidden" data-currency-panel="hkd">—</div>
-          <div class="settlement-actions hidden" id="settlement-actions">
-            <button type="button" class="btn btn-primary btn-sm btn-block" id="btn-open-repay"><img class="category-icon category-icon-btn" src="icons/repayment.png" alt="" aria-hidden="true"> 記錄還錢</button>
+          <div class="summary-icon-block summary-icon-block-settlement">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/repayment.png" alt=""></span>
+            <div class="summary-icon-block-body">
+              <div class="sr-only">而家邊個欠邊個</div>
+              <div id="settlement-jpy" class="settlement-line" data-currency-panel="jpy">—</div>
+              <div id="settlement-hkd" class="settlement-line hidden" data-currency-panel="hkd">—</div>
+              <div class="settlement-actions hidden" id="settlement-actions">
+                <button type="button" class="btn btn-primary btn-sm btn-block" id="btn-open-repay"><img class="category-icon category-icon-btn" src="icons/repayment.png" alt="" aria-hidden="true"> 記錄還錢</button>
+              </div>
+            </div>
           </div>
         </div>
 
         <details class="settlement-explain-details" id="settlement-explain-details">
           <summary class="settlement-explain-summary">
-            <span class="settlement-explain-summary-label"><img class="ui-icon ui-icon-label" src="icons/budget.png" alt="" aria-hidden="true"> 點計出嚟？</span>
-            <span class="explain-preview" id="settlement-explain-preview"></span>
+            <span class="explain-open-btn">
+              <img class="ui-icon explain-open-btn-icon" src="icons/budget.png" alt="" aria-hidden="true">
+              <span id="settlement-explain-preview">打開睇睇</span>
+            </span>
+            <span class="sr-only">點計出嚟？</span>
           </summary>
           <div class="settlement-explain-inner">
             <div id="settlement-explain-jpy" class="settlement-explain" data-currency-panel="jpy"></div>
@@ -279,10 +298,16 @@
           <details class="filter-panel" id="filter-panel-date">
             <summary><img class="ui-icon ui-icon-sm" src="icons/date.png" alt="" aria-hidden="true"> 自訂日期範圍</summary>
             <div class="filter-panel-body filter-day-range-panel">
-              <div class="filter-day-range">
-                <input type="date" id="filter-day-from" aria-label="開始日期">
-                <span class="day-range-sep" aria-hidden="true">至</span>
-                <input type="date" id="filter-day-to" aria-label="結束日期">
+              <div class="filter-item filter-item-icon-field">
+                <span class="sr-only">自訂日期範圍</span>
+                <div class="form-icon-field">
+                  <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/date.png" alt=""></span>
+                  <div class="filter-day-range">
+                    <input type="date" id="filter-day-from" aria-label="開始日期">
+                    <span class="day-range-sep" aria-hidden="true">至</span>
+                    <input type="date" id="filter-day-to" aria-label="結束日期">
+                  </div>
+                </div>
               </div>
             </div>
           </details>
@@ -294,10 +319,12 @@
             </summary>
             <div class="filter-panel-body">
               <div class="filter-grid filter-grid-advanced">
-                <div class="filter-item filter-item-picker">
-                  <label id="filter-category-label"><img class="ui-icon ui-icon-label" src="icons/tag.png?v=20260730dc" alt="" aria-hidden="true"> 分類</label>
+                <div class="filter-item filter-item-picker filter-item-icon-field">
+                  <span id="filter-category-label" class="sr-only">分類</span>
+                  <div class="form-icon-field">
+                    <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/tag.png?v=20260730dc" alt=""></span>
+                    <div class="category-picker-wrap form-icon-field-control" data-filter-picker="filter-category">
                   <input type="hidden" id="filter-category" value="">
-                  <div class="category-picker-wrap" data-filter-picker="filter-category">
                     <button
                       type="button"
                       class="category-picker-trigger"
@@ -319,11 +346,14 @@
                       aria-labelledby="filter-category-label"
                     ></div>
                   </div>
+                  </div>
                 </div>
-                <div class="filter-item filter-item-picker">
-                  <label id="filter-split-label"><img class="ui-icon ui-icon-label" src="icons/expense.png" alt="" aria-hidden="true"> 樣嘢點計</label>
+                <div class="filter-item filter-item-picker filter-item-icon-field">
+                  <span id="filter-split-label" class="sr-only">樣嘢點計</span>
+                  <div class="form-icon-field">
+                    <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/expense.png" alt=""></span>
+                    <div class="category-picker-wrap form-icon-field-control" data-filter-picker="filter-split">
                   <input type="hidden" id="filter-split" value="">
-                  <div class="category-picker-wrap" data-filter-picker="filter-split">
                     <button
                       type="button"
                       class="category-picker-trigger"
@@ -345,21 +375,28 @@
                       aria-labelledby="filter-split-label"
                     ></div>
                   </div>
+                  </div>
                 </div>
-                <div class="filter-item">
-                  <label for="filter-sort-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 價錢</label>
-                  <select id="filter-sort-amount">
-                    <option value="">預設</option>
-                    <option value="asc">低至高 ↑</option>
-                    <option value="desc">高至低 ↓</option>
-                  </select>
+                <div class="filter-item filter-item-icon-field">
+                  <label for="filter-sort-amount" class="sr-only">價錢</label>
+                  <div class="form-icon-field">
+                    <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/savings.png" alt=""></span>
+                    <select id="filter-sort-amount">
+                      <option value="">預設</option>
+                      <option value="asc">低至高 ↑</option>
+                      <option value="desc">高至低 ↓</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="filter-item">
-                  <label for="filter-sort-date"><img class="ui-icon ui-icon-label" src="icons/sort-time.png" alt="" aria-hidden="true"> 排序</label>
-                  <select id="filter-sort-date">
-                    <option value="desc">最新優先</option>
-                    <option value="asc">最舊優先</option>
-                  </select>
+                <div class="filter-item filter-item-icon-field">
+                  <label for="filter-sort-date" class="sr-only">排序</label>
+                  <div class="form-icon-field">
+                    <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/sort-time.png" alt=""></span>
+                    <select id="filter-sort-date">
+                      <option value="desc">最新優先</option>
+                      <option value="asc">最舊優先</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -446,24 +483,33 @@
       <form id="repay-form">
         <p class="repay-context" id="repay-context">—</p>
         <input type="hidden" id="repay-payer" value="">
-        <div class="form-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
-          <div class="toggle-group" id="repay-currency-toggle">
-            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
-            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+        <div class="form-row form-row-icon-field">
+          <span class="sr-only">幣別</span>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/exchange.png?v=20260730dc" alt=""></span>
+            <div class="toggle-group form-icon-field-control" id="repay-currency-toggle">
+              <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+              <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+            </div>
           </div>
           <input type="hidden" id="repay-currency" value="JPY">
         </div>
-        <div class="form-row">
-          <label for="repay-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 還錢金額</label>
-          <div class="money-input-wrap">
-            <span class="money-prefix prefix-jpy" id="repay-amount-prefix">¥</span>
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="repay-amount" required>
+        <div class="form-row form-row-icon-field">
+          <label for="repay-amount" class="sr-only">還錢金額</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/savings.png" alt=""></span>
+            <div class="money-input-wrap form-icon-field-control">
+              <span class="money-prefix prefix-jpy" id="repay-amount-prefix">¥</span>
+              <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="repay-amount" required>
+            </div>
           </div>
         </div>
-        <div class="form-row">
-          <label for="repay-note"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 備註 <span class="label-optional">（選填）</span></label>
-          <input type="text" id="repay-note" placeholder="例：現金、PayMe">
+        <div class="form-row form-row-icon-field">
+          <label for="repay-note" class="sr-only">備註（選填）</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/notes.png?v=20260730dc" alt=""></span>
+            <input type="text" id="repay-note" placeholder="例：現金、PayMe">
+          </div>
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="repay-submit-btn">確認還錢 <img class="ui-icon ui-icon-btn" src="icons/confirm.png" alt="" aria-hidden="true"></button>
       </form>
@@ -480,32 +526,44 @@
       </div>
       <form id="loan-form">
         <p class="loan-context" id="loan-context">—</p>
-        <div class="form-row">
-          <label><img class="ui-icon ui-icon-label" src="icons/exchange.png?v=20260730dc" alt="" aria-hidden="true"> 幣別</label>
-          <div class="toggle-group" id="loan-currency-toggle">
-            <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
-            <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+        <div class="form-row form-row-icon-field">
+          <span class="sr-only">幣別</span>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/exchange.png?v=20260730dc" alt=""></span>
+            <div class="toggle-group form-icon-field-control" id="loan-currency-toggle">
+              <button type="button" class="toggle-btn currency-icon-btn active" data-currency="JPY" aria-label="JPY" aria-pressed="true"><img class="ui-icon ui-icon-currency" src="icons/jpy.png?v=20260730dc" alt="" aria-hidden="true"></button>
+              <button type="button" class="toggle-btn currency-icon-btn" data-currency="HKD" aria-label="HKD" aria-pressed="false"><img class="ui-icon ui-icon-currency" src="icons/hkd.png?v=20260730dc" alt="" aria-hidden="true"></button>
+            </div>
           </div>
           <input type="hidden" id="loan-currency" value="JPY">
         </div>
-        <div class="form-row">
-          <label>🔄 邊個借畀邊個</label>
-          <div class="toggle-group" id="loan-direction-toggle">
-            <button type="button" class="toggle-btn active" data-direction="A_TO_B"><span class="loan-direction-inner"><img class="person-avatar person-avatar-inline" src="boy.png" alt=""> 借畀 <img class="person-avatar person-avatar-inline" src="girl.png" alt=""></span></button>
-            <button type="button" class="toggle-btn" data-direction="B_TO_A"><span class="loan-direction-inner"><img class="person-avatar person-avatar-inline" src="girl.png" alt=""> 借畀 <img class="person-avatar person-avatar-inline" src="boy.png" alt=""></span></button>
+        <div class="form-row form-row-icon-field">
+          <span class="sr-only">邊個借畀邊個</span>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/credit-card.png" alt=""></span>
+            <div class="toggle-group form-icon-field-control" id="loan-direction-toggle">
+              <button type="button" class="toggle-btn active" data-direction="A_TO_B"><span class="loan-direction-inner"><img class="person-avatar person-avatar-inline" src="boy.png" alt=""> 借畀 <img class="person-avatar person-avatar-inline" src="girl.png" alt=""></span></button>
+              <button type="button" class="toggle-btn" data-direction="B_TO_A"><span class="loan-direction-inner"><img class="person-avatar person-avatar-inline" src="girl.png" alt=""> 借畀 <img class="person-avatar person-avatar-inline" src="boy.png" alt=""></span></button>
+            </div>
           </div>
           <input type="hidden" id="loan-direction" value="A_TO_B">
         </div>
-        <div class="form-row">
-          <label for="loan-amount"><img class="ui-icon ui-icon-label" src="icons/savings.png" alt="" aria-hidden="true"> 借錢金額</label>
-          <div class="money-input-wrap">
-            <span class="money-prefix prefix-jpy" id="loan-amount-prefix">¥</span>
-            <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="loan-amount" required>
+        <div class="form-row form-row-icon-field">
+          <label for="loan-amount" class="sr-only">借錢金額</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/savings.png" alt=""></span>
+            <div class="money-input-wrap form-icon-field-control">
+              <span class="money-prefix prefix-jpy" id="loan-amount-prefix">¥</span>
+              <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="loan-amount" required>
+            </div>
           </div>
         </div>
-        <div class="form-row">
-          <label for="loan-note"><img class="ui-icon ui-icon-label" src="icons/notes.png?v=20260730dc" alt="" aria-hidden="true"> 備註 <span class="label-optional">（選填）</span></label>
-          <input type="text" id="loan-note" placeholder="例：現金、PayMe、應急">
+        <div class="form-row form-row-icon-field">
+          <label for="loan-note" class="sr-only">備註（選填）</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/notes.png?v=20260730dc" alt=""></span>
+            <input type="text" id="loan-note" placeholder="例：現金、PayMe、應急">
+          </div>
         </div>
         <button type="submit" class="btn btn-primary btn-block" id="loan-submit-btn">確認借錢 <img class="ui-icon ui-icon-btn" src="icons/expense.png" alt="" aria-hidden="true"></button>
       </form>
@@ -524,33 +582,49 @@
         <div class="budget-grid">
           <div class="budget-person">
             <h4><img class="person-avatar person-avatar-inline" src="boy.png" alt="" aria-hidden="true"></h4>
-            <label>JPY 預算
-              <div class="money-input-wrap">
-                <span class="money-prefix prefix-jpy">¥</span>
-                <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-a-jpy" required>
+            <div class="form-row form-row-icon-field">
+              <label for="budget-a-jpy" class="sr-only">男孩 JPY 預算</label>
+              <div class="form-icon-field">
+                <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/jpy.png?v=20260730dc" alt=""></span>
+                <div class="money-input-wrap form-icon-field-control">
+                  <span class="money-prefix prefix-jpy">¥</span>
+                  <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-a-jpy" required>
+                </div>
               </div>
-            </label>
-            <label>HKD 預算
-              <div class="money-input-wrap">
-                <span class="money-prefix prefix-hkd">$</span>
-                <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-a-hkd" required>
+            </div>
+            <div class="form-row form-row-icon-field">
+              <label for="budget-a-hkd" class="sr-only">男孩 HKD 預算</label>
+              <div class="form-icon-field">
+                <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/hkd.png?v=20260730dc" alt=""></span>
+                <div class="money-input-wrap form-icon-field-control">
+                  <span class="money-prefix prefix-hkd">$</span>
+                  <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-a-hkd" required>
+                </div>
               </div>
-            </label>
+            </div>
           </div>
           <div class="budget-person">
             <h4><img class="person-avatar person-avatar-inline" src="girl.png" alt="" aria-hidden="true"></h4>
-            <label>JPY 預算
-              <div class="money-input-wrap">
-                <span class="money-prefix prefix-jpy">¥</span>
-                <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-b-jpy" required>
+            <div class="form-row form-row-icon-field">
+              <label for="budget-b-jpy" class="sr-only">女生 JPY 預算</label>
+              <div class="form-icon-field">
+                <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/jpy.png?v=20260730dc" alt=""></span>
+                <div class="money-input-wrap form-icon-field-control">
+                  <span class="money-prefix prefix-jpy">¥</span>
+                  <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-b-jpy" required>
+                </div>
               </div>
-            </label>
-            <label>HKD 預算
-              <div class="money-input-wrap">
-                <span class="money-prefix prefix-hkd">$</span>
-                <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-b-hkd" required>
+            </div>
+            <div class="form-row form-row-icon-field">
+              <label for="budget-b-hkd" class="sr-only">女生 HKD 預算</label>
+              <div class="form-icon-field">
+                <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/hkd.png?v=20260730dc" alt=""></span>
+                <div class="money-input-wrap form-icon-field-control">
+                  <span class="money-prefix prefix-hkd">$</span>
+                  <input type="text" inputmode="decimal" pattern="[0-9]*[.]?[0-9]*" autocomplete="off" class="money-input" id="budget-b-hkd" required>
+                </div>
               </div>
-            </label>
+            </div>
           </div>
         </div>
         <button type="submit" class="btn btn-primary btn-block">儲存預算 <img class="ui-icon ui-icon-btn" src="icons/save.png" alt="" aria-hidden="true"></button>
@@ -652,27 +726,33 @@
       </div>
       <p id="person-spend-total" class="person-spend-total">—</p>
       <div class="person-spend-filters">
-        <div class="filter-item">
-          <label for="person-spend-category"><img class="ui-icon ui-icon-label" src="icons/tag.png?v=20260730dc" alt="" aria-hidden="true"> 分類</label>
-          <select id="person-spend-category">
-            <option value="">全部</option>
-            <option value="餐飲">餐飲</option>
-            <option value="交通">交通</option>
-            <option value="住宿">住宿</option>
-            <option value="購物">購物</option>
-            <option value="景點">景點</option>
-            <option value="便利店">便利店</option>
-            <option value="雜項">雜項</option>
-          </select>
+        <div class="filter-item filter-item-icon-field">
+          <label for="person-spend-category" class="sr-only">分類</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/tag.png?v=20260730dc" alt=""></span>
+            <select id="person-spend-category">
+              <option value="">全部</option>
+              <option value="餐飲">餐飲</option>
+              <option value="交通">交通</option>
+              <option value="住宿">住宿</option>
+              <option value="購物">購物</option>
+              <option value="景點">景點</option>
+              <option value="便利店">便利店</option>
+              <option value="雜項">雜項</option>
+            </select>
+          </div>
         </div>
-        <div class="filter-item">
-          <label for="person-spend-sort">🔃 排序</label>
-          <select id="person-spend-sort">
-            <option value="date-desc">最新優先</option>
-            <option value="date-asc">最舊優先</option>
-            <option value="amount-desc">金額高→低</option>
-            <option value="amount-asc">金額低→高</option>
-          </select>
+        <div class="filter-item filter-item-icon-field">
+          <label for="person-spend-sort" class="sr-only">排序</label>
+          <div class="form-icon-field">
+            <span class="form-field-icon" aria-hidden="true"><img class="ui-icon form-field-icon-img" src="icons/sort-time.png" alt=""></span>
+            <select id="person-spend-sort">
+              <option value="date-desc">最新優先</option>
+              <option value="date-asc">最舊優先</option>
+              <option value="amount-desc">金額高→低</option>
+              <option value="amount-asc">金額低→高</option>
+            </select>
+          </div>
         </div>
       </div>
       <ul id="person-spend-list" class="person-spend-list" aria-label="個人用左明細"></ul>
@@ -749,6 +829,6 @@
       }
     } catch (_) {}
   </script>
-  <script src="app.js?v=20260730eb"></script>
+  <script src="app.js?v=20260730ed"></script>
 </body>
 </html>
