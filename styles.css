@@ -2068,14 +2068,6 @@ button.currency-label.badge-all.active {
   min-height: 3.35rem;
 }
 
-.budget-person .form-row-icon-field {
-  margin-bottom: 0.625rem;
-}
-
-.budget-person .form-row-icon-field:last-child {
-  margin-bottom: 0;
-}
-
 .person-spend-filters .filter-item-icon-field .form-icon-field {
   width: 100%;
 }
@@ -2242,11 +2234,29 @@ button.currency-label.badge-all.active {
 }
 
 .budget-person .money-input-wrap {
-  margin-top: 0.25rem;
+  margin-top: 0;
+  width: 100%;
 }
 
 .budget-person .money-input {
-  padding: 0.55rem 0.65rem;
+  padding: 0.65rem 0.75rem;
+  min-width: 0;
+}
+
+.budget-person .form-row {
+  margin-bottom: 0.625rem;
+}
+
+.budget-person .form-row:last-child {
+  margin-bottom: 0;
+}
+
+.budget-person .form-row > label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
 }
 
 /* Toggle buttons */
